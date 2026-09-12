@@ -67,3 +67,5 @@ learning-plan generation and access to the prepared job-description dataset.
 Deployed on [Vercel](https://vercel.com/), connected directly to this GitHub
 repo. Every push triggers a Vercel build; no separate CI/deploy workflow is
 configured here.
+
+Copyright (c) 2026 200 OK Career Found. All rights reserved.
