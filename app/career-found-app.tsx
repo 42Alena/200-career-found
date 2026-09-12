@@ -15,12 +15,12 @@ import type {
 } from "@/lib/contracts";
 
 const steps: { key: StepKey; label: string }[] = [
-  { key: "background", label: "Background" },
+  { key: "background", label: "Experience" },
   { key: "profile", label: "Profile" },
-  { key: "assessment", label: "Assessment" },
-  { key: "roles", label: "Roles" },
-  { key: "skills", label: "Skills" },
-  { key: "plan", label: "Plan" },
+  { key: "assessment", label: "Fit questions" },
+  { key: "roles", label: "Career paths" },
+  { key: "skills", label: "Evidence & gaps" },
+  { key: "plan", label: "30-day plan" },
 ];
 
 const emptyProfile: Profile = {
@@ -490,9 +490,10 @@ export function CareerFoundApp() {
   return (
     <main className="app-shell">
       <aside className="sidebar" aria-label="Workflow">
-        <div>
+        <div className="brand-block">
           <p className="brand-kicker">200</p>
           <h1>Career Found</h1>
+          <p>Experience → evidence → action</p>
         </div>
 
         <nav className="step-nav">
@@ -509,16 +510,19 @@ export function CareerFoundApp() {
           ))}
         </nav>
 
-        <div className="workspace-meta">
-          <span>Workspace</span>
-          <strong>{workspaceId ? workspaceId.slice(-8) : "Loading"}</strong>
+        <div className="hackathon-mark">
+          <span>Built at</span>
+          <strong>AI Women Hackathon Hamburg</strong>
         </div>
       </aside>
 
       <section className="workspace">
         <header className="workspace-header">
           <div>
-            <p className="eyebrow">{stepLabel(step)}</p>
+            <p className="eyebrow">
+              Step {steps.findIndex((item) => item.key === step) + 1} of{" "}
+              {steps.length} · {stepLabel(step)}
+            </p>
             <h2>{screenTitle(step)}</h2>
           </div>
           <div className="header-status">
@@ -541,47 +545,99 @@ export function CareerFoundApp() {
 
   function renderBackground() {
     return (
-      <form className="panel form-grid" onSubmit={handleBackgroundSubmit}>
-        <p className="wide value-proposition">
-          Compare realistic career paths using real job requirements, see your
-          skill gaps, and get a personalized 30-day learning plan.
-        </p>
-        <label className="wide">
-          Resume / experience
-          <textarea
-            className="large-text"
-            value={cvText}
-            onChange={(event) => setCvText(event.target.value)}
-            placeholder="Paste or dictate your resume, work history, education, tools, and achievements"
-          />
-          <VoiceInputButton
-            onTranscript={(text) => setCvText((current) => appendValue(current, text))}
-          />
-        </label>
-        <label>
-          LinkedIn profile URL
-          <input
-            type="url"
-            value={linkedinUrl}
-            onChange={(event) => setLinkedinUrl(event.target.value)}
-            placeholder="https://www.linkedin.com/in/..."
-          />
-        </label>
-        <label>
-          GitHub profile URL
-          <input
-            type="url"
-            value={githubUrl}
-            onChange={(event) => setGithubUrl(event.target.value)}
-            placeholder="https://github.com/..."
-          />
-        </label>
-        <div className="actions wide">
-          <button disabled={Boolean(busyLabel)} type="submit">
-            Continue
-          </button>
-        </div>
-      </form>
+      <div className="landing-layout">
+        <section className="landing-promise">
+          <p className="value-proposition">
+            Get 3 realistic career paths, evidence-backed skill gaps, and a
+            personalized 30-day plan.
+          </p>
+          <div className="value-points" aria-label="What Career Found delivers">
+            <div>
+              <strong>3</strong>
+              <span>career paths</span>
+            </div>
+            <div>
+              <strong>5</strong>
+              <span>jobs per path</span>
+            </div>
+            <div>
+              <strong>Real</strong>
+              <span>skill evidence</span>
+            </div>
+            <div>
+              <strong>30 days</strong>
+              <span>to take action</span>
+            </div>
+          </div>
+          <div className="journey-strip" aria-label="Career Found journey">
+            <span>Your experience</span>
+            <b aria-hidden="true">→</b>
+            <span>Career direction</span>
+            <b aria-hidden="true">→</b>
+            <span>Real job evidence</span>
+            <b aria-hidden="true">→</b>
+            <span>Action plan</span>
+          </div>
+        </section>
+
+        <form
+          className="panel form-grid landing-form"
+          onSubmit={handleBackgroundSubmit}
+        >
+          <div className="wide form-intro">
+            <p className="eyebrow">Start with what you already know</p>
+            <h3>Tell us about your experience</h3>
+          </div>
+          <label className="wide">
+            Resume / experience
+            <textarea
+              className="large-text"
+              value={cvText}
+              onChange={(event) => setCvText(event.target.value)}
+              placeholder="Paste or dictate your resume, work history, education, tools, and achievements"
+            />
+            <VoiceInputButton
+              onTranscript={(text) =>
+                setCvText((current) => appendValue(current, text))
+              }
+            />
+          </label>
+          <div className="wide optional-divider">
+            <span>Optional profiles</span>
+          </div>
+          <label>
+            LinkedIn profile URL
+            <input
+              type="url"
+              value={linkedinUrl}
+              onChange={(event) => setLinkedinUrl(event.target.value)}
+              placeholder="https://www.linkedin.com/in/..."
+            />
+          </label>
+          <label>
+            GitHub profile URL
+            <input
+              type="url"
+              value={githubUrl}
+              onChange={(event) => setGithubUrl(event.target.value)}
+              placeholder="https://github.com/..."
+            />
+          </label>
+          <div className="actions wide">
+            <div className="next-step-copy">
+              <strong>Next</strong>
+              <span>Review the profile we extract</span>
+            </div>
+            <button
+              className="primary-action"
+              disabled={Boolean(busyLabel)}
+              type="submit"
+            >
+              Analyze my experience
+            </button>
+          </div>
+        </form>
+      </div>
     );
   }
 
@@ -693,7 +749,7 @@ export function CareerFoundApp() {
         </label>
         <div className="actions wide">
           <button disabled={Boolean(busyLabel)} type="submit">
-            Continue
+            Continue to fit questions
           </button>
         </div>
       </form>
@@ -735,6 +791,7 @@ export function CareerFoundApp() {
         </label>
         <div className="actions wide">
           <button
+            className="button-secondary"
             disabled={Boolean(busyLabel) || questionIndex === 0}
             type="button"
             onClick={handleAssessmentBack}
@@ -747,8 +804,8 @@ export function CareerFoundApp() {
             onClick={() => void handleAssessmentNext()}
           >
             {questionIndex === assessmentQuestions.length - 1
-              ? "Create suggestions"
-              : "Next"}
+              ? "See my 3 career paths"
+              : "Next question"}
           </button>
         </div>
       </div>
@@ -770,38 +827,73 @@ export function CareerFoundApp() {
     }
 
     return (
-      <div className="role-grid">
-        {recommendations.map((recommendation) => {
-          const sources =
-            workspace?.jobDescriptions.filter(
-              (source) => source.roleTitle === recommendation.title,
-            ) ?? [];
+      <div className="roles-layout">
+        <section className="result-context">
+          <div>
+            <p className="eyebrow">Your experience, translated into options</p>
+            <h3>
+              {profile.name
+                ? `${profile.name}, compare your 3 realistic directions.`
+                : "Compare your 3 realistic directions."}
+            </h3>
+          </div>
+          <p>
+            Each path connects your background to recurring requirements from
+            five job descriptions.
+          </p>
+        </section>
 
-          return (
-            <article className="role-card" key={recommendation.id}>
-              <div className="role-card-header">
-                <div>
-                  <p className="eyebrow">{sources.length} job sources</p>
-                  <h3>{recommendation.title}</h3>
+        <div className="role-grid">
+          {recommendations.map((recommendation) => {
+            const sources =
+              workspace?.jobDescriptions.filter(
+                (source) => source.roleTitle === recommendation.title,
+              ) ?? [];
+
+            return (
+              <article className="role-card" key={recommendation.id}>
+                <div className="role-card-header">
+                  <div>
+                    <p className="eyebrow">
+                      Based on {sources.length} job descriptions
+                    </p>
+                    <h3>{recommendation.title}</h3>
+                  </div>
+                  <div className="match-score">
+                    <span>Experience match</span>
+                    <strong>{recommendation.matchScore}%</strong>
+                  </div>
                 </div>
-                <strong>{recommendation.matchScore}%</strong>
-              </div>
-              <p>{recommendation.summary}</p>
-              <ListBlock title="Strengths" items={recommendation.matchingStrengths} />
-              <ListBlock title="Essential gaps" items={recommendation.essentialGaps} />
-              <ListBlock
-                title="Confirm"
-                items={recommendation.requirementsNeedingConfirmation}
-              />
-              <button
-                type="button"
-                onClick={() => void handleRoleSelect(recommendation)}
-              >
-                Assess skills
-              </button>
-            </article>
-          );
-        })}
+                <div className="role-fit-summary">
+                  <span>Why it fits you</span>
+                  <p>
+                    {recommendation.matchingStrengths[0] ??
+                      recommendation.summary}
+                  </p>
+                </div>
+                <ListBlock
+                  title="Your existing strengths"
+                  items={recommendation.matchingStrengths.slice(1)}
+                />
+                <ListBlock
+                  title="Skills to build"
+                  items={recommendation.essentialGaps}
+                />
+                <ListBlock
+                  title="Check before choosing"
+                  items={recommendation.requirementsNeedingConfirmation}
+                />
+                <button
+                  className="role-card-action"
+                  type="button"
+                  onClick={() => void handleRoleSelect(recommendation)}
+                >
+                  Choose this path
+                </button>
+              </article>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -823,49 +915,113 @@ export function CareerFoundApp() {
     );
 
     return (
-      <div className="panel">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">Selected role</p>
-            <h3>{selectedRecommendation.title}</h3>
+      <div className="skills-layout">
+        <section className="selected-path-summary">
+          <div className="selected-path-heading">
+            <div>
+              <p className="eyebrow">Your selected path</p>
+              <h3>{selectedRecommendation.title}</h3>
+            </div>
+            <div className="selected-path-actions">
+              <div className="match-score">
+                <span>Experience match</span>
+                <strong>{selectedRecommendation.matchScore}%</strong>
+              </div>
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={() => setStep("roles")}
+              >
+                Change path
+              </button>
+            </div>
           </div>
-          <button type="button" onClick={() => setStep("roles")}>
-            Change role
-          </button>
-        </div>
 
-        <div className="market-evidence">
-          <strong>Grounded in real job requirements</strong>
-          <p>
-            These skills come from five prepared job-market sources—not generic
-            AI advice. Open any linked posting to inspect the evidence.
-          </p>
-        </div>
+          <div className="path-summary-grid">
+            <article className="path-proof-card why-fit-card">
+              <p className="eyebrow">Why it fits</p>
+              <p>
+                {selectedRecommendation.matchingStrengths[0] ??
+                  selectedRecommendation.summary}
+              </p>
+            </article>
+            <article className="path-proof-card market-proof-card">
+              <p className="eyebrow">Market evidence</p>
+              <strong>{sources.length} job descriptions analyzed</strong>
+              <span>Linked sources below</span>
+            </article>
+            <div className="path-proof-card">
+              <ListBlock
+                title="Your existing strengths"
+                items={selectedRecommendation.matchingStrengths.slice(1)}
+              />
+            </div>
+            <div className="path-proof-card gaps-card">
+              <ListBlock
+                title="Your main gaps"
+                items={selectedRecommendation.essentialGaps}
+              />
+            </div>
+          </div>
+        </section>
 
-        <SkillSection
-          sources={sources}
-          requirements={selectedRecommendation.requirements.essential}
-          ratings={activeRatings}
-          title="Essential skills"
-          onChange={updateRating}
-        />
-        <SkillSection
-          sources={sources}
-          requirements={selectedRecommendation.requirements.preferred}
-          ratings={activeRatings}
-          title="Preferred skills"
-          onChange={updateRating}
-        />
+        <section className="panel evidence-panel">
+          <div className="market-evidence">
+            <div>
+              <p className="eyebrow">Market evidence</p>
+              <strong>Requirements repeated across real job descriptions</strong>
+            </div>
+            <p>
+              These are not generic AI suggestions. Every frequency below is
+              connected to the linked job sources where it appeared.
+            </p>
+          </div>
 
-        <div className="actions">
-          <button
-            disabled={Boolean(busyLabel)}
-            type="button"
-            onClick={() => void handleSaveRatingsAndPlan()}
+          <div
+            className="evidence-flow"
+            aria-label="How skill gaps are calculated"
           >
-            Create learning plan
-          </button>
-        </div>
+            <span>Real jobs</span>
+            <b aria-hidden="true">→</b>
+            <span>Recurring skills</span>
+            <b aria-hidden="true">→</b>
+            <span>Your current level</span>
+            <b aria-hidden="true">→</b>
+            <span>Your gap</span>
+          </div>
+
+          <SkillSection
+            sources={sources}
+            requirements={selectedRecommendation.requirements.essential}
+            ratings={activeRatings}
+            title="Essential skills"
+            onChange={updateRating}
+          />
+          <SkillSection
+            sources={sources}
+            requirements={selectedRecommendation.requirements.preferred}
+            ratings={activeRatings}
+            title="Preferred skills"
+            onChange={updateRating}
+          />
+
+          <div className="actions plan-cta-row">
+            <div className="next-step-copy">
+              <strong>Next</strong>
+              <span>
+                Turn your gaps into a {profile.dailyMinutes}-minute daily plan
+              </span>
+            </div>
+            <button
+              className="primary-action"
+              disabled={Boolean(busyLabel)}
+              type="button"
+              onClick={() => void handleSaveRatingsAndPlan()}
+            >
+              Build my 30-day plan
+            </button>
+          </div>
+        </section>
       </div>
     );
   }
@@ -887,18 +1043,33 @@ export function CareerFoundApp() {
     return (
       <div className="plan-layout">
         <section className="panel plan-summary">
-          <div>
-            <p className="eyebrow">{plan.roleTitle}</p>
-            <h3>
-              {planProgress.completed} of {planProgress.total} complete
-            </h3>
+          <div className="plan-summary-heading">
+            <div>
+              <p className="eyebrow">Your career direction</p>
+              <h3>{plan.roleTitle}</h3>
+            </div>
+            <div className="plan-commitment">
+              <strong>{profile.dailyMinutes} min</strong>
+              <span>per day</span>
+            </div>
+          </div>
+          <div className="plan-progress-copy">
+            <strong>
+              {planProgress.completed} of {planProgress.total} days complete
+            </strong>
+            <span>
+              Your focused roadmap from skill gaps to portfolio evidence.
+            </span>
           </div>
           <progress max={planProgress.total} value={planProgress.completed} />
         </section>
 
         <section className="plan-list">
           {plan.days.map((day) => (
-            <article className="plan-day" key={day.day}>
+            <article
+              className={day.completed ? "plan-day completed" : "plan-day"}
+              key={day.day}
+            >
               <label className="check-row">
                 <input
                   checked={day.completed}
@@ -911,21 +1082,32 @@ export function CareerFoundApp() {
               </label>
               <p>{day.task}</p>
               <div className="plan-meta">
-                <span>{day.timeEstimateMinutes} min</span>
-                <span>{day.expectedOutput}</span>
+                <span className="duration-chip">
+                  {day.timeEstimateMinutes} min
+                </span>
+                <span>
+                  <strong>Output:</strong> {day.expectedOutput}
+                </span>
               </div>
-              <textarea
-                value={day.notes}
-                onChange={(event) =>
-                  updatePlanDay(day.day, { notes: event.target.value })
-                }
-                placeholder="Notes"
-              />
-              <VoiceInputButton
-                onTranscript={(text) =>
-                  updatePlanDay(day.day, { notes: appendValue(day.notes, text) })
-                }
-              />
+              <div className="plan-notes-row">
+                <textarea
+                  aria-label={`Notes for ${day.title}`}
+                  className="plan-notes"
+                  rows={2}
+                  value={day.notes}
+                  onChange={(event) =>
+                    updatePlanDay(day.day, { notes: event.target.value })
+                  }
+                  placeholder="Add a note or link to your work"
+                />
+                <VoiceInputButton
+                  onTranscript={(text) =>
+                    updatePlanDay(day.day, {
+                      notes: appendValue(day.notes, text),
+                    })
+                  }
+                />
+              </div>
             </article>
           ))}
         </section>
@@ -962,7 +1144,10 @@ function SkillSection({
 }) {
   return (
     <section className="skill-section">
-      <h4>{title}</h4>
+      <div className="skill-section-heading">
+        <h4>{title}</h4>
+        <span>Rate your level and add an example if you have one.</span>
+      </div>
       <div className="skill-list">
         {requirements.map((skill) => {
           const rating = ratings.find((item) => item.skillId === skill.id) ?? {
@@ -992,38 +1177,48 @@ function SkillSection({
                   {evidenceSources.slice(0, 2).map((source) => (
                     <li key={source.id}>
                       <a href={source.url} target="_blank" rel="noreferrer">
-                        {source.company} · {source.title}
+                        {source.company} · {source.title} ↗
                       </a>
                     </li>
                   ))}
                 </ul>
               </div>
-              <select
-                aria-label={`Rate your ${skill.name} skill`}
-                value={rating.rating}
-                onChange={(event) =>
-                  onChange(skill, { rating: Number(event.target.value) })
-                }
-              >
-                {ratingLabels.map((label, index) => (
-                  <option key={label} value={index}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <input
-                aria-label={`${skill.name} experience`}
-                value={rating.evidence}
-                onChange={(event) =>
-                  onChange(skill, { evidence: event.target.value })
-                }
-                placeholder="Experience"
-              />
-              <VoiceInputButton
-                onTranscript={(text) =>
-                  onChange(skill, { evidence: appendValue(rating.evidence, text) })
-                }
-              />
+              <div className="skill-rating-controls">
+                <label className="level-field">
+                  <span>Your current level</span>
+                  <select
+                    aria-label={`Rate your ${skill.name} skill`}
+                    value={rating.rating}
+                    onChange={(event) =>
+                      onChange(skill, { rating: Number(event.target.value) })
+                    }
+                  >
+                    {ratingLabels.map((label, index) => (
+                      <option key={label} value={index}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="experience-field">
+                  <span>Evidence from your experience</span>
+                  <input
+                    aria-label={`${skill.name} experience`}
+                    value={rating.evidence}
+                    onChange={(event) =>
+                      onChange(skill, { evidence: event.target.value })
+                    }
+                    placeholder="Optional example"
+                  />
+                </label>
+                <VoiceInputButton
+                  onTranscript={(text) =>
+                    onChange(skill, {
+                      evidence: appendValue(rating.evidence, text),
+                    })
+                  }
+                />
+              </div>
             </div>
           );
         })}
@@ -1256,12 +1451,12 @@ function screenTitle(step: StepKey) {
     case "profile":
       return "Review your profile";
     case "assessment":
-      return "Quick assessment";
+      return "Four questions to refine your fit";
     case "roles":
-      return "Suggested roles";
+      return "3 career paths for you";
     case "skills":
-      return "Skills assessment";
+      return "Your path, backed by market evidence";
     case "plan":
-      return "Your learning plan";
+      return "Your 30-day action plan";
   }
 }
