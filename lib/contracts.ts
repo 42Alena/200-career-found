@@ -12,7 +12,7 @@ export const StepKeySchema = z.enum([
 export const ProfileSchema = z.object({
   name: z.string().trim().optional().default(""),
   currentRole: z.string().trim().optional().default(""),
-  targetLocation: z.string().trim().optional().default("Remote"),
+  targetLocation: z.string().trim().optional().default("Remote Germany"),
   weeklyHours: z.coerce.number().int().min(1).max(60).default(8),
   dailyMinutes: z.union([z.literal(15), z.literal(30), z.literal(60)]).default(30),
   background: z.string().trim().optional().default(""),
@@ -172,7 +172,7 @@ export const WorkspaceSchema = z.object({
 export const SourceJobDescriptionsRequestSchema = z.object({
   workspaceId: z.string().min(1),
   roleTitles: z.array(z.string().min(1)).max(5).optional(),
-  location: z.string().optional().default("Remote"),
+  location: z.string().optional().default("Remote Germany"),
 });
 
 export const GenerateRecommendationsRequestSchema = z.object({

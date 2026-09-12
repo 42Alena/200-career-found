@@ -169,7 +169,7 @@ export function buildSkillRequirement(
 
 export function preparedJobDescriptionsForRole(
   roleTitle: string,
-  location = "Remote",
+  location = "Remote Germany",
 ): JobDescriptionSource[] {
   const seed = getRoleSeed(roleTitle);
   const preparedRole = preparedJobMarketData.find(

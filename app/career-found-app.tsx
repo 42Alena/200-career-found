@@ -26,7 +26,7 @@ const steps: { key: StepKey; label: string }[] = [
 const emptyProfile: Profile = {
   name: "",
   currentRole: "",
-  targetLocation: "Remote",
+  targetLocation: "Remote Germany",
   weeklyHours: 8,
   dailyMinutes: 30,
   background: "",
@@ -361,7 +361,7 @@ export function CareerFoundApp() {
           body: JSON.stringify({
             workspaceId,
             roleTitles: rolesPayload.candidateRoleTitles,
-            location: profile.targetLocation || "Remote",
+            location: profile.targetLocation || "Remote Germany",
           }),
         },
       );
@@ -598,7 +598,7 @@ export function CareerFoundApp() {
             onChange={(event) =>
               setProfile({ ...profile, name: event.target.value })
             }
-            placeholder="Oleh"
+            placeholder="Sofia"
           />
           <VoiceInputButton
             onTranscript={(text) =>
@@ -631,7 +631,7 @@ export function CareerFoundApp() {
             onChange={(event) =>
               setProfile({ ...profile, targetLocation: event.target.value })
             }
-            placeholder="Remote, Berlin, Warsaw"
+            placeholder="Remote Germany, Berlin, Hamburg, Munich, Frankfurt"
           />
           <VoiceInputButton
             onTranscript={(text) =>

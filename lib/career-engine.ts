@@ -118,7 +118,7 @@ export function buildFallbackProfile(input: {
   return {
     name: "",
     currentRole: "",
-    targetLocation: "Remote",
+    targetLocation: "Remote Germany",
     background: combined.slice(0, 600),
     goal: "",
   };
