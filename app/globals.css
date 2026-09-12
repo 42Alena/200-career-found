@@ -249,6 +249,13 @@ label {
   font-weight: 500;
 }
 
+.value-proposition {
+  max-width: 52rem;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
 .assessment-conversation {
   display: grid;
   gap: 1rem;
@@ -337,6 +344,22 @@ label {
   font-size: 0.94rem;
 }
 
+.market-evidence {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1rem;
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  padding: 0.9rem 1rem;
+}
+
+.market-evidence p {
+  margin: 0;
+  color: var(--accent-strong);
+  line-height: 1.5;
+}
+
 .list-block ul {
   display: grid;
   gap: 0.35rem;
@@ -356,11 +379,65 @@ label {
 
 .skill-row {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) 9rem minmax(10rem, 0.8fr) auto;
+  grid-template-columns: minmax(18rem, 1.4fr) 9rem minmax(10rem, 0.8fr) auto;
   gap: 0.75rem;
   align-items: start;
   border-top: 1px solid var(--line);
   padding-top: 0.75rem;
+}
+
+.skill-details {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.skill-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.skill-category,
+.source-count {
+  border-radius: 999px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.73rem;
+  font-weight: 800;
+}
+
+.skill-category.essential {
+  background: #fff1d6;
+  color: var(--warning);
+}
+
+.skill-category.preferred {
+  background: #e9f2ff;
+  color: #285ea8;
+}
+
+.source-count {
+  background: #f1f5f4;
+  color: var(--muted);
+}
+
+.evidence-links {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+}
+
+.evidence-links a {
+  color: var(--accent-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.evidence-links a:hover {
+  color: var(--accent);
 }
 
 .plan-layout {
