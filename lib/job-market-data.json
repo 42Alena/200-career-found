@@ -1,0 +1,152 @@
+[
+  {
+    "roleTitle": "Junior Frontend Developer",
+    "jobs": [
+      {
+        "id": "frontend-coinbase",
+        "title": "Frontend Software Engineer, Emerging Talent",
+        "company": "Coinbase",
+        "location": "Remote / United States",
+        "url": "https://boards.greenhouse.io/embed/job_app?for=coinbase&token=4940958",
+        "essentialSkills": ["HTML", "CSS", "JavaScript", "TypeScript", "React"],
+        "preferredSkills": ["Next.js", "Testing"]
+      },
+      {
+        "id": "frontend-canonical",
+        "title": "Web Frontend Engineer — JS, CSS, React, Flutter",
+        "company": "Canonical",
+        "location": "Remote worldwide",
+        "url": "https://boards.greenhouse.io/embed/job_app?for=canonical&token=5150422",
+        "essentialSkills": ["CSS", "JavaScript", "TypeScript", "React", "REST APIs", "Responsive design"],
+        "preferredSkills": ["Accessibility"]
+      },
+      {
+        "id": "frontend-yext",
+        "title": "Software Engineer, Web",
+        "company": "Yext",
+        "location": "Budapest, Hungary",
+        "url": "https://boards.greenhouse.io/embed/job_app?token=6853409",
+        "essentialSkills": ["HTML", "CSS", "JavaScript", "TypeScript", "React", "Responsive design"],
+        "preferredSkills": ["Testing"]
+      },
+      {
+        "id": "frontend-figs",
+        "title": "Senior Software Engineer, Frontend",
+        "company": "FIGS",
+        "location": "Remote / United States",
+        "url": "https://boards.greenhouse.io/embed/job_app?for=figs15&token=8019091002",
+        "essentialSkills": ["HTML", "CSS", "JavaScript", "TypeScript", "React", "Git"],
+        "preferredSkills": ["Next.js", "Accessibility", "Testing", "GraphQL"]
+      },
+      {
+        "id": "frontend-future",
+        "title": "Frontend Engineer (React)",
+        "company": "Future",
+        "location": "Remote / United States",
+        "url": "https://boards.greenhouse.io/embed/job_app?token=4590439005",
+        "essentialSkills": ["HTML", "CSS", "JavaScript", "TypeScript", "React", "Responsive design"],
+        "preferredSkills": ["Next.js", "Tailwind CSS"]
+      }
+    ]
+  },
+  {
+    "roleTitle": "QA Automation Tester",
+    "jobs": [
+      {
+        "id": "qa-capgemini",
+        "title": "QA Automation Engineer (Playwright & API Testing)",
+        "company": "Capgemini",
+        "location": "Charlotte, NC",
+        "url": "https://careers.capgemini.com/job/Atlanta%2C-GA-QA-Automation-Engineer-%28Playwright-%26-API-Testing%29-GA-30301/1414449333/",
+        "essentialSkills": ["Test cases", "Bug reports", "Playwright", "API testing", "Regression testing"],
+        "preferredSkills": ["Postman"]
+      },
+      {
+        "id": "qa-collabera",
+        "title": "Quality Assurance Engineer",
+        "company": "Collabera",
+        "location": "United States",
+        "url": "https://jobs.smartrecruiters.com/Collabera2/93854416-quality-assurance-engineer",
+        "essentialSkills": ["Test cases", "Bug reports", "Regression testing"],
+        "preferredSkills": ["Selenium", "Agile"]
+      },
+      {
+        "id": "qa-synechron",
+        "title": "QA Automation Engineer — Playwright & Java",
+        "company": "Synechron",
+        "location": "United States",
+        "url": "https://synechron.wd1.myworkdayjobs.com/en-US/SynechronCareers/job/QA-Automation-Engineer---Playwright---Java_JR1041522",
+        "essentialSkills": ["JavaScript", "Playwright", "API testing", "Git", "Bug reports", "CI"],
+        "preferredSkills": ["TypeScript", "Selenium", "SQL", "Postman", "Agile"]
+      },
+      {
+        "id": "qa-fuuse",
+        "title": "Senior QA Automation Engineer",
+        "company": "Fuuse",
+        "location": "United Kingdom",
+        "url": "https://fuuse.io/hubfs/Senior%20QA%20Engineer%20Job%20Description.pdf",
+        "essentialSkills": ["Test cases", "Playwright", "API testing", "Regression testing"],
+        "preferredSkills": ["Postman"]
+      },
+      {
+        "id": "qa-healthbridge",
+        "title": "Senior Quality Assurance Engineer",
+        "company": "Healthbridge",
+        "location": "South Africa",
+        "url": "https://healthbridge.co.za/wp-content/uploads/2025/05/Healthbridge-Job-Specification-Senior-Quality-Assurance-Engineer.pdf",
+        "essentialSkills": ["Test cases", "Bug reports", "Regression testing", "CI"],
+        "preferredSkills": ["Playwright", "Selenium", "API testing"]
+      }
+    ]
+  },
+  {
+    "roleTitle": "Data Analyst",
+    "jobs": [
+      {
+        "id": "data-mandt",
+        "title": "Full Stack Data Analyst",
+        "company": "M&T Bank",
+        "location": "Getzville, NY",
+        "url": "https://mtb.wd5.myworkdayjobs.com/en-US/MTB/job/Full-Stack-Data-Analyst_R81950",
+        "essentialSkills": ["SQL", "Dashboards", "Business questions", "Presentation"],
+        "preferredSkills": ["Power BI", "Tableau", "Data cleaning"]
+      },
+      {
+        "id": "data-pipze",
+        "title": "Data Analyst — Business Intelligence",
+        "company": "Pipze",
+        "location": "Remote worldwide",
+        "url": "https://www.pipze.com/careers/10/data-analyst-business-intelligence",
+        "essentialSkills": ["SQL", "Dashboards", "Charts", "Business questions", "Presentation"],
+        "preferredSkills": ["Python", "Power BI", "Tableau", "dbt"]
+      },
+      {
+        "id": "data-target",
+        "title": "Senior Data Analyst — Digital and Ecommerce",
+        "company": "Target",
+        "location": "United States",
+        "url": "https://target.wd5.myworkdayjobs.com/en-US/targetcareers/job/Sr-Data-Analyst---Digital-and-Ecommerce_R0000437894",
+        "essentialSkills": ["SQL", "Dashboards", "Charts", "Business questions", "Basic statistics", "Presentation"],
+        "preferredSkills": ["Python", "Power BI", "A/B testing"]
+      },
+      {
+        "id": "data-sanofi",
+        "title": "DTC/P AA & AI, Data Analyst",
+        "company": "Sanofi",
+        "location": "United States",
+        "url": "https://sanofi.wd3.myworkdayjobs.com/en-US/SanofiCareers/job/DTC-P-AA---AI--Data-Analyst_R2855669-1",
+        "essentialSkills": ["SQL", "Data cleaning", "Dashboards", "Charts", "Business questions", "Basic statistics"],
+        "preferredSkills": ["Python", "Power BI", "Tableau", "A/B testing"]
+      },
+      {
+        "id": "data-as-white-global",
+        "title": "Data Analyst",
+        "company": "AS White Global",
+        "location": "Hybrid",
+        "url": "https://aswhiteglobal.com/wp-content/uploads/2024/01/ASW-PD-Data-Analyst.pdf",
+        "essentialSkills": ["Spreadsheets", "Data cleaning", "Dashboards", "Charts", "Presentation"],
+        "preferredSkills": ["SQL", "Power BI", "Tableau"]
+      }
+    ]
+  }
+]

@@ -39,6 +39,7 @@ export async function POST(request: Request) {
       profile: {
         ...fallbackProfile,
         weeklyHours: current.profile?.weeklyHours ?? 8,
+        dailyMinutes: current.profile?.dailyMinutes ?? 30,
       },
     }),
   );
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
       profile: {
         ...aiProfile,
         weeklyHours: current.profile?.weeklyHours ?? 8,
+        dailyMinutes: current.profile?.dailyMinutes ?? 30,
       },
     }),
   );

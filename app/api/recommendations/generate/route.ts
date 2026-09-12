@@ -1,7 +1,6 @@
 import { GenerateRecommendationsRequestSchema } from "@/lib/contracts";
 import { badRequest, parseJsonRequest } from "@/lib/api";
 import { buildCandidateCorpus, generateRecommendations } from "@/lib/career-engine";
-import { generateRecommendationsWithAi } from "@/lib/ai";
 import { updateWorkspace } from "@/lib/workspace-store";
 
 export const runtime = "nodejs";
@@ -46,36 +45,5 @@ export async function POST(request: Request) {
     return badRequest("Submit an assessment before generating recommendations");
   }
 
-  const aiRecommendations = await generateRecommendationsWithAi({
-    profile: workspace.profile ?? {
-      name: "",
-      currentRole: "",
-      targetLocation: "Remote",
-      weeklyHours: 8,
-      background: "",
-      goal: "",
-    },
-    background: workspace.background,
-    assessment: workspace.assessment,
-    jobDescriptions: workspace.jobDescriptions,
-    fallbackRecommendations: generated,
-  });
-
-  if (!aiRecommendations) {
-    return Response.json({ recommendations: generated, workspace });
-  }
-
-  const nextWorkspace = await updateWorkspace(
-    parsed.data.workspaceId,
-    (current) => ({
-      ...current,
-      recommendations: aiRecommendations,
-      selectedRoleId: aiRecommendations[0]?.id,
-    }),
-  );
-
-  return Response.json({
-    recommendations: aiRecommendations,
-    workspace: nextWorkspace,
-  });
+  return Response.json({ recommendations: generated, workspace });
 }

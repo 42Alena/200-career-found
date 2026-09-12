@@ -1,5 +1,8 @@
 import type { JobDescriptionSource, SkillRequirement } from "@/lib/contracts";
 import { slugify } from "@/lib/ids";
+import preparedJobMarketData from "@/lib/job-market-data.json";
+
+const JOB_SAMPLE_SIZE = 5;
 
 type RoleSeed = {
   title: string;
@@ -52,9 +55,9 @@ export const roleSeeds: RoleSeed[] = [
     preferredSkills: [
       "Next.js",
       "Accessibility",
-      "Testing Library",
-      "Figma",
+      "Testing",
       "Tailwind CSS",
+      "GraphQL",
     ],
   },
   {
@@ -91,10 +94,10 @@ export const roleSeeds: RoleSeed[] = [
       "Playwright",
       "API testing",
       "Git",
-      "Browser devtools",
       "Regression testing",
+      "CI",
     ],
-    preferredSkills: ["Selenium", "CI", "SQL", "Postman", "Agile"],
+    preferredSkills: ["Selenium", "SQL", "Postman", "Agile", "TypeScript"],
   },
   {
     title: "Data Analyst",
@@ -135,54 +138,13 @@ export const roleSeeds: RoleSeed[] = [
     ],
     preferredSkills: ["Python", "Power BI", "Tableau", "dbt", "A/B testing"],
   },
-  {
-    title: "Technical Support Specialist",
-    keywords: [
-      "support",
-      "customer",
-      "troubleshooting",
-      "communication",
-      "tickets",
-      "systems",
-      "helpdesk",
-      "documentation",
-    ],
-    strengths: [
-      "You can use communication and empathy as technical advantages.",
-      "Your experience may fit practical troubleshooting and user support.",
-      "This path gives a realistic first step into IT teams.",
-    ],
-    gaps: [
-      "Build fundamentals in networking, operating systems, and ticket workflows.",
-      "Practice structured diagnosis and concise escalation notes.",
-      "Learn common SaaS, identity, and device-management concepts.",
-    ],
-    confirmations: [
-      "Confirm comfort handling repeated questions and urgent requests.",
-      "Confirm you can explain technical steps calmly to non-technical users.",
-    ],
-    essentialSkills: [
-      "Troubleshooting",
-      "Ticketing",
-      "Windows",
-      "macOS",
-      "Networking basics",
-      "Customer communication",
-      "Documentation",
-      "SaaS administration",
-    ],
-    preferredSkills: ["ITIL", "Active Directory", "MDM", "Linux", "Security basics"],
-  },
 ];
 
-export const defaultRoleTitles = roleSeeds.slice(0, 3).map((role) => role.title);
+export const defaultRoleTitles = roleSeeds.map((role) => role.title);
 
 export function getRoleSeed(title: string) {
-  const normalized = title.toLowerCase();
-  return (
-    roleSeeds.find((role) => role.title.toLowerCase() === normalized) ??
-    roleSeeds.find((role) => normalized.includes(role.title.toLowerCase())) ??
-    roleSeeds[0]!
+  return roleSeeds.find(
+    (role) => role.title.toLowerCase() === title.trim().toLowerCase(),
   );
 }
 
@@ -190,7 +152,7 @@ export function buildSkillRequirement(
   roleTitle: string,
   name: string,
   category: "essential" | "preferred",
-  sourceCount = 1,
+  sourceIds: string[],
 ): SkillRequirement {
   return {
     id: `${slugify(roleTitle)}-${category}-${slugify(name)}`,
@@ -198,40 +160,35 @@ export function buildSkillRequirement(
     category,
     evidence:
       category === "essential"
-        ? `${name} appears as a core requirement for ${roleTitle}.`
-        : `${name} appears as a useful bonus skill for ${roleTitle}.`,
-    sourceCount,
+        ? `${name} is a core requirement across the analyzed ${roleTitle} postings.`
+        : `${name} is a useful differentiator in the analyzed ${roleTitle} postings.`,
+    sourceCount: sourceIds.length,
+    sourceIds,
   };
 }
 
-export function fallbackJobDescriptionsForRole(
+export function preparedJobDescriptionsForRole(
   roleTitle: string,
   location = "Remote",
 ): JobDescriptionSource[] {
   const seed = getRoleSeed(roleTitle);
+  const preparedRole = preparedJobMarketData.find(
+    (entry) => entry.roleTitle === seed?.title,
+  );
   const now = new Date().toISOString();
 
-  return Array.from({ length: 5 }, (_, index) => {
-    const essentials = seed.essentialSkills
-      .slice(index % 3, index % 3 + 5)
-      .join(", ");
-    const preferred = seed.preferredSkills
-      .slice(index % 2, index % 2 + 3)
-      .join(", ");
-
+  return (preparedRole?.jobs ?? []).slice(0, JOB_SAMPLE_SIZE).map((job) => {
     return {
-      id: `${slugify(seed.title)}-fixture-${index + 1}`,
-      roleTitle: seed.title,
-      title: `${seed.title} opening ${index + 1}`,
-      company: `Market sample ${index + 1}`,
-      location,
-      url: "",
+      id: job.id,
+      roleTitle: preparedRole?.roleTitle ?? roleTitle,
+      title: job.title,
+      company: job.company,
+      location: job.location || location,
+      url: job.url,
       markdown: [
-        `# ${seed.title}`,
-        `Location: ${location}`,
-        `Essential skills: ${essentials}.`,
-        `Preferred skills: ${preferred}.`,
-        "Responsibilities include shipping practical work, communicating clearly, and learning from review.",
+        `# ${job.title} at ${job.company}`,
+        `Essential skills: ${job.essentialSkills.join(", ")}.`,
+        `Preferred skills: ${job.preferredSkills.join(", ")}.`,
       ].join("\n\n"),
       source: "fixture",
       scrapedAt: now,

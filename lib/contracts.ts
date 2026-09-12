@@ -14,6 +14,7 @@ export const ProfileSchema = z.object({
   currentRole: z.string().trim().optional().default(""),
   targetLocation: z.string().trim().optional().default("Remote"),
   weeklyHours: z.coerce.number().int().min(1).max(60).default(8),
+  dailyMinutes: z.union([z.literal(15), z.literal(30), z.literal(60)]).default(30),
   background: z.string().trim().optional().default(""),
   goal: z.string().trim().optional().default(""),
 });
@@ -76,6 +77,7 @@ export const BackgroundSnapshotSchema = z.object({
 
 export const ExtractedProfileSchema = ProfileSchema.omit({
   weeklyHours: true,
+  dailyMinutes: true,
 });
 
 export const ExtractProfileRequestSchema = z.object({
@@ -110,6 +112,7 @@ export const SkillRequirementSchema = z.object({
   category: SkillCategorySchema,
   evidence: z.string().min(1),
   sourceCount: z.number().int().min(1).default(1),
+  sourceIds: z.array(z.string().min(1)).default([]),
 });
 
 export const RoleRecommendationSchema = z.object({

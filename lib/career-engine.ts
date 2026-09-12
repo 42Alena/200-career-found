@@ -15,8 +15,8 @@ import {
 } from "@/lib/contracts";
 import {
   buildSkillRequirement,
-  fallbackJobDescriptionsForRole,
   getRoleSeed,
+  preparedJobDescriptionsForRole,
   roleSeeds,
 } from "@/lib/fixtures";
 import { createId, slugify } from "@/lib/ids";
@@ -32,6 +32,9 @@ const skillAliases: Record<string, string[]> = {
   "REST APIs": ["rest", "api", "json", "http"],
   Accessibility: ["accessibility", "a11y", "wcag"],
   "Testing Library": ["testing library", "unit tests", "component tests"],
+  Testing: ["testing", "unit tests", "end-to-end tests"],
+  GraphQL: ["graphql"],
+  "Responsive design": ["responsive design", "screen sizes", "devices"],
   Figma: ["figma", "design handoff"],
   "Tailwind CSS": ["tailwind", "tailwind css"],
   "Test cases": ["test case", "test cases", "test plan"],
@@ -42,6 +45,8 @@ const skillAliases: Record<string, string[]> = {
   "Browser devtools": ["browser devtools", "devtools", "chrome devtools"],
   "Regression testing": ["regression"],
   CI: ["ci", "github actions", "continuous integration"],
+  Postman: ["postman"],
+  Agile: ["agile", "scrum"],
   SQL: ["sql", "postgres", "mysql", "database"],
   Spreadsheets: ["spreadsheet", "excel", "google sheets"],
   "Data cleaning": ["data cleaning", "clean data", "etl"],
@@ -170,28 +175,31 @@ export function extractSkillRequirements(
   roleTitle: string,
   sources: JobDescriptionSource[],
 ): { essential: SkillRequirement[]; preferred: SkillRequirement[] } {
-  const seed = roleSeeds.find((role) => role.title === roleTitle) ?? roleSeeds[0]!;
+  const seed = getRoleSeed(roleTitle);
+
+  if (!seed) {
+    return { essential: [], preferred: [] };
+  }
+
   const markdown = sources.map((source) => source.markdown.toLowerCase());
-  const allEssential = new Map<string, number>();
-  const allPreferred = new Map<string, number>();
 
-  for (const skill of seed.essentialSkills) {
-    const count = countSkillMentions(markdown, skill);
-    allEssential.set(skill, Math.max(1, count));
-  }
+  const buildRequirements = (
+    skills: string[],
+    category: "essential" | "preferred",
+  ) =>
+    skills.flatMap((name) => {
+      const sourceIds = sources
+        .filter((source) => pageMentionsSkill(source.markdown.toLowerCase(), name))
+        .map((source) => source.id);
 
-  for (const skill of seed.preferredSkills) {
-    const count = countSkillMentions(markdown, skill);
-    allPreferred.set(skill, Math.max(1, count));
-  }
+      return sourceIds.length > 0
+        ? [buildSkillRequirement(roleTitle, name, category, sourceIds)]
+        : [];
+    });
 
   return {
-    essential: Array.from(allEssential, ([name, sourceCount]) =>
-      buildSkillRequirement(roleTitle, name, "essential", sourceCount),
-    ),
-    preferred: Array.from(allPreferred, ([name, sourceCount]) =>
-      buildSkillRequirement(roleTitle, name, "preferred", sourceCount),
-    ),
+    essential: buildRequirements(seed.essentialSkills, "essential"),
+    preferred: buildRequirements(seed.preferredSkills, "preferred"),
   };
 }
 
@@ -200,32 +208,31 @@ export function generateRecommendations(
   jobDescriptions: JobDescriptionSource[],
   candidateRoleTitles?: string[],
 ): RoleRecommendation[] {
-  const ranked =
-    candidateRoleTitles && candidateRoleTitles.length > 0
-      ? candidateRoleTitles.slice(0, 3).map((title) => ({
-          title,
-          role: getRoleSeed(title),
-          score: rankRoleSeeds(corpus).find(
-            (entry) => entry.role.title === getRoleSeed(title).title,
-          )?.score ?? 60,
-        }))
-      : rankRoleSeeds(corpus)
-          .slice(0, 3)
-          .map(({ role, score }) => ({ title: role.title, role, score }));
+  const ranked = rankRoleSeeds(corpus);
+  const requestedRoles = (candidateRoleTitles ?? [])
+    .map(getRoleSeed)
+    .filter((role): role is (typeof roleSeeds)[number] => Boolean(role));
+  const selectedRoles = [...requestedRoles, ...ranked.map(({ role }) => role)]
+    .filter(
+      (role, index, roles) =>
+        roles.findIndex((candidate) => candidate.title === role.title) === index,
+    )
+    .slice(0, 3);
 
-  return ranked.map(({ title, role, score }) => {
+  return selectedRoles.map((role) => {
+    const score = ranked.find((entry) => entry.role.title === role.title)?.score ?? 60;
     const sources = jobDescriptions.filter(
-      (source) => source.roleTitle === title,
+      (source) => source.roleTitle === role.title,
     );
     const roleSources =
-      sources.length > 0 ? sources : fallbackJobDescriptionsForRole(title);
+      sources.length > 0 ? sources : preparedJobDescriptionsForRole(role.title);
     const requirements = extractSkillRequirements(role.title, roleSources);
 
     return {
-      id: `role_${slugify(title)}`,
-      title,
+      id: `role_${slugify(role.title)}`,
+      title: role.title,
       matchScore: score,
-      summary: `A practical path for turning your current experience into ${title} portfolio evidence.`,
+      summary: `A practical path for turning your current experience into ${role.title} portfolio evidence.`,
       matchingStrengths: role.strengths,
       essentialGaps: role.gaps,
       requirementsNeedingConfirmation: role.confirmations,
@@ -238,7 +245,7 @@ export function buildLearningPlan(
   workspaceId: string,
   recommendation: RoleRecommendation,
   ratings: SkillRating[],
-  weeklyHours: number,
+  dailyMinutes: number,
 ): LearningPlan {
   const lowRatedSkillNames = ratings
     .filter((rating) => rating.rating < 3)
@@ -250,7 +257,6 @@ export function buildLearningPlan(
     lowRatedSkillNames.length > 0 ? lowRatedSkillNames : essentialSkillNames;
   const safeFocusSkills =
     focusSkills.length > 0 ? focusSkills : [recommendation.title];
-  const minutesPerDay = Math.max(30, Math.round((weeklyHours * 60) / 5));
   const phases = [
     "Understand the role and set up a small project",
     "Practice the core workflow",
@@ -273,7 +279,7 @@ export function buildLearningPlan(
         day,
         title: `Day ${day}: ${skill}`,
         task: `${phase}. Work specifically on ${skill.toLowerCase()} and record what changed.`,
-        timeEstimateMinutes: minutesPerDay,
+        timeEstimateMinutes: dailyMinutes,
         expectedOutput:
           day % 5 === 0
             ? "A short reflection with screenshots, links, or notes showing progress."
@@ -285,9 +291,7 @@ export function buildLearningPlan(
   };
 }
 
-function countSkillMentions(markdown: string[], skill: string) {
+function pageMentionsSkill(page: string, skill: string) {
   const aliases = skillAliases[skill] ?? [skill.toLowerCase()];
-  return markdown.reduce((count, page) => {
-    return count + (aliases.some((alias) => page.includes(alias)) ? 1 : 0);
-  }, 0);
+  return aliases.some((alias) => page.includes(alias.toLowerCase()));
 }

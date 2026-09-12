@@ -128,7 +128,7 @@ export async function generateLearningPlanWithAi(input: {
   workspaceId: string;
   recommendation: RoleRecommendation;
   ratings: SkillRating[];
-  weeklyHours: number;
+  dailyMinutes: number;
   fallbackPlan: LearningPlan;
 }): Promise<LearningPlan | null> {
   const payload = {
@@ -152,7 +152,19 @@ export async function generateLearningPlanWithAi(input: {
     (result as { plan?: unknown }).plan,
   );
 
-  return parsed.success ? parsed.data : null;
+  if (!parsed.success) {
+    return null;
+  }
+
+  return {
+    ...parsed.data,
+    workspaceId: input.workspaceId,
+    roleTitle: input.recommendation.title,
+    days: parsed.data.days.map((day) => ({
+      ...day,
+      timeEstimateMinutes: input.dailyMinutes,
+    })),
+  };
 }
 
 export async function extractProfileFromBackground(input: {

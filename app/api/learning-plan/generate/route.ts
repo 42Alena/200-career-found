@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       parsed.data.workspaceId,
       recommendation,
       current.skillRatings,
-      current.profile?.weeklyHours ?? 8,
+      current.profile?.dailyMinutes ?? 30,
     );
 
     return {
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     workspaceId: parsed.data.workspaceId,
     recommendation: selectedRecommendation,
     ratings: workspace.skillRatings,
-    weeklyHours: workspace.profile?.weeklyHours ?? 8,
+    dailyMinutes: workspace.profile?.dailyMinutes ?? 30,
     fallbackPlan,
   });
 

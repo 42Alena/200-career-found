@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   AssessmentAnswers,
+  JobDescriptionSource,
   LearningPlanDay,
   Profile,
   RoleRecommendation,
@@ -27,6 +28,7 @@ const emptyProfile: Profile = {
   currentRole: "",
   targetLocation: "Remote",
   weeklyHours: 8,
+  dailyMinutes: 30,
   background: "",
   goal: "",
 };
@@ -202,7 +204,11 @@ export function CareerFoundApp() {
   function hydrateWorkspace(nextWorkspace: Workspace) {
     setWorkspace(nextWorkspace);
     setStep(nextWorkspace.currentStep);
-    setProfile(nextWorkspace.profile ?? emptyProfile);
+    setProfile({
+      ...emptyProfile,
+      ...nextWorkspace.profile,
+      dailyMinutes: nextWorkspace.profile?.dailyMinutes ?? 30,
+    });
     setSelectedRoleId(
       nextWorkspace.selectedRoleId ?? nextWorkspace.recommendations[0]?.id ?? "",
     );
@@ -536,6 +542,10 @@ export function CareerFoundApp() {
   function renderBackground() {
     return (
       <form className="panel form-grid" onSubmit={handleBackgroundSubmit}>
+        <p className="wide value-proposition">
+          Compare realistic career paths using real job requirements, see your
+          skill gaps, and get a personalized 30-day learning plan.
+        </p>
         <label className="wide">
           Resume / experience
           <textarea
@@ -633,19 +643,20 @@ export function CareerFoundApp() {
           />
         </label>
         <label>
-          Hours per week
-          <input
-            min={1}
-            max={60}
-            type="number"
-            value={profile.weeklyHours}
+          Learning time
+          <select
+            value={profile.dailyMinutes}
             onChange={(event) =>
               setProfile({
                 ...profile,
-                weeklyHours: Number(event.target.value),
+                dailyMinutes: Number(event.target.value) as 15 | 30 | 60,
               })
             }
-          />
+          >
+            <option value={15}>15 minutes/day</option>
+            <option value={30}>30 minutes/day</option>
+            <option value={60}>60 minutes/day</option>
+          </select>
         </label>
         <label className="wide">
           Background
@@ -807,6 +818,10 @@ export function CareerFoundApp() {
       );
     }
 
+    const sources = (workspace?.jobDescriptions ?? []).filter(
+      (source) => source.roleTitle === selectedRecommendation.title,
+    );
+
     return (
       <div className="panel">
         <div className="panel-heading">
@@ -819,13 +834,23 @@ export function CareerFoundApp() {
           </button>
         </div>
 
+        <div className="market-evidence">
+          <strong>Grounded in real job requirements</strong>
+          <p>
+            These skills come from five prepared job-market sources—not generic
+            AI advice. Open any linked posting to inspect the evidence.
+          </p>
+        </div>
+
         <SkillSection
+          sources={sources}
           requirements={selectedRecommendation.requirements.essential}
           ratings={activeRatings}
           title="Essential skills"
           onChange={updateRating}
         />
         <SkillSection
+          sources={sources}
           requirements={selectedRecommendation.requirements.preferred}
           ratings={activeRatings}
           title="Preferred skills"
@@ -924,11 +949,13 @@ function ListBlock({ title, items }: { title: string; items: string[] }) {
 
 function SkillSection({
   title,
+  sources,
   requirements,
   ratings,
   onChange,
 }: {
   title: string;
+  sources: JobDescriptionSource[];
   requirements: SkillRequirement[];
   ratings: SkillRating[];
   onChange: (skill: SkillRequirement, patch: Partial<SkillRating>) => void;
@@ -944,14 +971,35 @@ function SkillSection({
             rating: 0,
             evidence: "",
           };
+          const evidenceSources = sources.filter((source) =>
+            skill.sourceIds.includes(source.id),
+          );
 
           return (
             <div className="skill-row" key={skill.id}>
-              <div>
-                <strong>{skill.name}</strong>
+              <div className="skill-details">
+                <div className="skill-heading">
+                  <strong>{skill.name}</strong>
+                  <span className={`skill-category ${skill.category}`}>
+                    {skill.category === "essential" ? "Essential" : "Preferred"}
+                  </span>
+                  <span className="source-count">
+                    Found in {skill.sourceCount} of {sources.length || 5} jobs
+                  </span>
+                </div>
                 <p>{skill.evidence}</p>
+                <ul className="evidence-links" aria-label={`${skill.name} sources`}>
+                  {evidenceSources.slice(0, 2).map((source) => (
+                    <li key={source.id}>
+                      <a href={source.url} target="_blank" rel="noreferrer">
+                        {source.company} · {source.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               </div>
               <select
+                aria-label={`Rate your ${skill.name} skill`}
                 value={rating.rating}
                 onChange={(event) =>
                   onChange(skill, { rating: Number(event.target.value) })
@@ -964,6 +1012,7 @@ function SkillSection({
                 ))}
               </select>
               <input
+                aria-label={`${skill.name} experience`}
                 value={rating.evidence}
                 onChange={(event) =>
                   onChange(skill, { evidence: event.target.value })
@@ -1203,7 +1252,7 @@ function stepLabel(step: StepKey) {
 function screenTitle(step: StepKey) {
   switch (step) {
     case "background":
-      return "Tell us about your background";
+      return "Find the IT role that fits your experience.";
     case "profile":
       return "Review your profile";
     case "assessment":
