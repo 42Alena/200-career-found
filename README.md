@@ -1,124 +1,252 @@
 # 200: Career Found
 
-200: Career Found is an AI-powered career and learning assistant for people
-exploring a path into IT.
+> **Find the IT role that fits you — and know what to learn next.**
 
-The app helps users answer a practical question:
+[![Next.js](https://img.shields.io/badge/Next.js-TypeScript-black)](https://nextjs.org/)
+[![AI](https://img.shields.io/badge/AI-OpenAI-412991)](https://openai.com/)
+[![Voice](https://img.shields.io/badge/Voice-ElevenLabs-black)](https://elevenlabs.io/)
+[![Built at](https://img.shields.io/badge/Built_at-AI.WOMEN_Hackathon_2026-ff4f9a)](#team)
 
-> Which IT role actually fits me, and what should I learn next?
+**200: Career Found** is an AI-powered career and learning assistant for people exploring a path into IT.
 
-Users share their background, experience, interests and goals. Based on that
-profile, the assistant recommends three suitable IT career directions and
-explains why each role could be a good fit. It highlights existing strengths,
-important skill gaps and any requirements that still need to be confirmed.
+It helps answer two practical questions:
 
-After choosing a direction, users assess their current skills and receive a
-personalized 30-day learning plan with practical tasks and clear next steps.
-Recommendations are grounded in a prepared dataset of real job descriptions
-rather than generic career advice.
+> **Which IT role actually fits me?**  
+> **What should I learn next?**
 
-## Core flow
+The application combines a user's background, experience, interests and goals with evidence from real job descriptions. It recommends three suitable career directions, explains the reasoning, identifies important skill gaps and turns the selected direction into a personalized 30-day learning plan.
 
-1. User shares background: resume/experience text (typed or dictated) plus
-   optional LinkedIn/GitHub profile URLs, which are scraped server-side.
-2. Assistant drafts a profile (name, current role, location, background,
-   goal) from that background; the user reviews and edits it.
-3. User answers four assessment questions one at a time (typed or dictated).
-4. Assistant infers a handful of candidate IT role titles from the profile
-   and assessment, sources real job descriptions for those specific titles,
-   and recommends three suitable career directions grounded in them.
-5. User reviews fit explanations, strengths, gaps and open requirements, and
-   chooses one direction.
-6. User assesses current skills for that direction.
-7. Assistant creates a personalized 30-day learning plan.
+**Built during the AI.WOMEN Hackathon 2026 in Hamburg by team 200 OK.**
+
+<!-- Add your deployed URL here -->
+**Live demo:** `YOUR-DEMO-URL`
+
+---
+
+## The problem
+
+Moving into IT can be confusing.
+
+There are many possible roles, overlapping requirements and endless learning resources. A person may know they want to work in tech but still not know:
+
+**Which role fits my experience? What skills do I already have? What am I missing? And what should I do next?**
+
+**200: Career Found turns that uncertainty into a concrete path forward.**
+
+---
+
+## How it works
+
+```text
+Your background
+      ↓
+AI-built profile
+      ↓
+Short assessment
+      ↓
+Relevant IT roles
+      ↓
+Real job-market evidence
+      ↓
+3 personalized recommendations
+      ↓
+Choose a direction
+      ↓
+Skill-gap analysis
+      ↓
+30-day learning plan
+```
+
+Users start by sharing their experience, skills, projects and goals. They can type their answers or use voice input.
+
+The assistant creates a structured profile, asks a short assessment and identifies relevant IT career directions.
+
+For each recommendation, the user can see:
+
+- why the role may fit
+- which existing strengths are relevant
+- which skills are still missing
+- which requirements need more information
+
+After selecting a direction, the user assesses their current skills and receives a personalized **30-day learning plan** with practical tasks and clear next steps.
+
+---
+
+## What makes it different
+
+Many career tools stop at:
+
+> *"Here are some jobs you might like."*
+
+**200: Career Found connects career discovery with action.**
+
+```text
+experience → market evidence → career direction → skill gaps → learning plan
+```
+
+Recommendations are grounded in real job descriptions rather than generic career advice alone.
+
+The goal is not to tell someone that they are automatically qualified for a role.
+
+The goal is to help them understand:
+
+> **Where could I realistically go next, and what would I need to learn to get there?**
+
+---
+
+## How AI is used
+
+AI does the core reasoning inside the product.
+
+### Understand the user
+
+The assistant turns free-form information into a structured profile of experience, skills, projects, interests and goals.
+
+It distinguishes between information supported by the user's examples and information that still needs confirmation.
+
+### Find relevant career directions
+
+The profile and assessment are used to identify IT roles worth exploring.
+
+### Ground recommendations in the job market
+
+Real job descriptions provide evidence about skills and requirements for those roles.
+
+The assistant combines this evidence with the user's profile to generate three explained recommendations.
+
+### Identify skill gaps
+
+For the selected role, the system compares relevant job requirements with the user's current skills and experience.
+
+### Build the next step
+
+The gaps are transformed into a personalized 30-day learning plan with practical exercises and expected outcomes.
 
 ### Voice input
 
-Every free-text field (resume text, assessment answers, skill evidence,
-plan notes) has a dictation button that records a short clip in the browser
-and transcribes it via ElevenLabs Speech-to-Text. Typing always remains
-available; without `ELEVENLABS_API_KEY` configured, the dictation button
-surfaces an inline "not configured" error instead of transcribing.
+Users can dictate free-text answers instead of typing them. Speech is transcribed using **ElevenLabs Speech-to-Text**.
 
-## Product goals
+---
 
-- Make career exploration into IT more concrete and less overwhelming.
-- Connect recommendations to real job market signals.
-- Help users understand both what already fits and what still needs work.
-- Turn a chosen direction into an actionable short-term learning plan.
+## Built for transparency
 
-## Stack
+The application does not simply return a career title.
 
-- [Next.js](https://nextjs.org/) (App Router) + TypeScript (strict mode)
-- [Zod](https://zod.dev/) for runtime/type validation
-- pnpm workspace (single app today; `packages/*` is reserved for future shared
-  packages, e.g. shared Zod schemas/types)
+It is designed to show **why** a direction was recommended and connect that recommendation to evidence from the job market.
+
+AI handles interpretation, matching, analysis and personalization. The application handles the user journey, validation, state, interfaces and orchestration around those AI workflows.
+
+---
+
+## Tech stack
+
+| Area | Technology |
+| --- | --- |
+| Frontend & backend | Next.js + React |
+| Language | TypeScript |
+| Validation | Zod |
+| AI reasoning | OpenAI |
+| Voice input | ElevenLabs |
+| Package management | pnpm |
+| Deployment | Vercel |
+
+---
+
+## Run locally
+
+```bash
+git clone https://github.com/42Alena/200-career-found.git
+cd 200-career-found
+
+pnpm install
+
+cp .env.example .env.local
+
+pnpm dev
+```
+
+Then open:
+
+```text
+http://localhost:3000
+```
+
+The required environment variables are documented in `.env.example`.
+
+Keep API keys in `.env.local` and never commit them to the repository.
+
+---
 
 ## Development
 
 ```bash
-pnpm install
-pnpm dev
+pnpm dev        # start the development server
+pnpm build      # create a production build
+pnpm start      # run the production build
+pnpm typecheck  # run TypeScript checks
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+---
 
-Other scripts:
+## Project status
 
-```bash
-pnpm build   # production build
-pnpm start   # run the production build
-pnpm typecheck
+**200: Career Found is a hackathon MVP.**
+
+The focus is one complete end-to-end experience:
+
+**understand the user → find realistic directions → identify gaps → create an actionable learning plan.**
+
+The project can later expand to additional career directions, larger job datasets and more adaptive learning journeys.
+
+---
+
+## Team
+
+### 200 OK
+
+**Alena Kurmyza**  
+**Olena Hladkovska**  
+**Huayun Ai**
+
+Built during the **AI.WOMEN Hackathon 2026** in Hamburg.
+
+---
+
+## Why "200: Career Found"?
+
+In HTTP:
+
+```text
+200 OK
 ```
 
-## API routes
+means that a request succeeded.
 
-Server-side logic lives under `app/api/*/route.ts` using Next.js Route Handlers.
-Expected API work includes user profile intake, role matching, skill assessment,
-learning-plan generation and access to the prepared job-description dataset.
+We turned:
 
-Implemented MVP routes:
-
-- `GET /api/workspace?workspaceId=...`
-- `PUT /api/workspace`
-- `POST /api/background`
-- `POST /api/assessment`
-- `POST /api/roles/infer`
-- `POST /api/job-descriptions/source`
-- `POST /api/recommendations/generate`
-- `POST /api/skills/ratings`
-- `POST /api/learning-plan/generate`
-- `POST /api/voice/transcribe`
-
-## Environment
-
-The app runs locally without secrets by using deterministic fallback data. All
-of the following env vars are optional; each unlocks one integration:
-
-```bash
-FIRECRAWL_API_KEY=fc-...
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-5.1
-ELEVENLABS_API_KEY=sk_...
+```text
+404: Career Not Found
 ```
 
-Secrets are used only inside server route handlers and server-side library
-modules.
+into:
 
-## Persistence
+```text
+200: Career Found
+```
 
-The MVP does not require a database. User progress is kept in browser
-`localStorage` and posted to the server on each change; the server keeps a
-per-process in-memory copy for the current request. This means:
+Because finding the right direction should feel like finally getting a successful response.
 
-- Users can reload the page and keep their progress on the same device.
-- Progress is not synced across devices.
-- No setup, migration, or connection string is needed.
+---
 
-## Deployment
+## About the hackathon
 
-Deployed on [Vercel](https://vercel.com/), connected directly to this GitHub
-repo. Every push triggers a Vercel build; no separate CI/deploy workflow is
-configured here.
+This project was created during the **AI.WOMEN Hackathon 2026**.
 
-Copyright (c) 2026 200 OK Career Found. All rights reserved.
+The public repository and commit history document the development of the prototype during the hackathon weekend.
+
+---
+
+## Copyright
+
+Copyright © 2026 **200: Career Found**.  
+All rights reserved.
