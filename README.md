@@ -92,11 +92,10 @@ Implemented MVP routes:
 
 ## Environment
 
-The app runs locally without secrets by using deterministic fallback data and an
-in-memory workspace store. Production should configure:
+The app runs locally without secrets by using deterministic fallback data. All
+of the following env vars are optional; each unlocks one integration:
 
 ```bash
-DATABASE_URL=postgresql://...
 FIRECRAWL_API_KEY=fc-...
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-5.1
@@ -106,15 +105,15 @@ ELEVENLABS_API_KEY=sk_...
 Secrets are used only inside server route handlers and server-side library
 modules.
 
-## Database
+## Persistence
 
-The MVP uses Neon Postgres through Drizzle with a single JSONB-backed
-`workspaces` table. Apply the manual SQL migration in
-`drizzle/0001_create_workspaces.sql` from the Neon SQL editor or Vercel database
-query tab before relying on production persistence.
+The MVP does not require a database. User progress is kept in browser
+`localStorage` and posted to the server on each change; the server keeps a
+per-process in-memory copy for the current request. This means:
 
-If `DATABASE_URL` is missing, or if the table is unavailable during local
-development, route handlers fall back to memory for the current server process.
+- Users can reload the page and keep their progress on the same device.
+- Progress is not synced across devices.
+- No setup, migration, or connection string is needed.
 
 ## Deployment
 
