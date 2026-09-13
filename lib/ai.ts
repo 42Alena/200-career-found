@@ -17,6 +17,7 @@ import { env } from "@/lib/env";
 import { z } from "zod";
 
 const responseEndpoint = "https://api.openai.com/v1/responses";
+const chatCompletionsEndpoint = "https://api.openai.com/v1/chat/completions";
 
 // Free-text fields (resume text, scraped profile markdown, dictated
 // answers/evidence) are user-submitted or scraped from third-party pages —
@@ -260,9 +261,23 @@ async function callOpenAiJson(
   prompt: string,
 ): Promise<unknown | null> {
   if (!env.OPENAI_API_KEY) {
+    console.warn(`[ai:${name}] OPENAI_API_KEY not set — using fallback`);
     return null;
   }
 
+  const responsesResult = await callResponsesApi(name, schema, prompt);
+  if (responsesResult !== null) {
+    return responsesResult;
+  }
+
+  return callChatCompletionsApi(name, schema, prompt);
+}
+
+async function callResponsesApi(
+  name: string,
+  schema: Record<string, unknown>,
+  prompt: string,
+): Promise<unknown | null> {
   try {
     const response = await fetch(responseEndpoint, {
       method: "POST",
@@ -285,6 +300,10 @@ async function callOpenAiJson(
     });
 
     if (!response.ok) {
+      const errorBody = await safeReadText(response);
+      console.warn(
+        `[ai:${name}] responses api ${response.status} model=${env.OPENAI_MODEL} err=${errorBody.slice(0, 300)}`,
+      );
       return null;
     }
 
@@ -292,13 +311,103 @@ async function callOpenAiJson(
     const output = extractOutputText(body);
 
     if (!output) {
+      console.warn(
+        `[ai:${name}] responses api returned empty output model=${env.OPENAI_MODEL}`,
+      );
       return null;
     }
 
-    return JSON.parse(output) as unknown;
+    return parseJsonPayload(output);
+  } catch (error) {
+    console.warn(
+      `[ai:${name}] responses api threw ${error instanceof Error ? error.message : "unknown"}`,
+    );
+    return null;
+  }
+}
+
+async function callChatCompletionsApi(
+  name: string,
+  schema: Record<string, unknown>,
+  prompt: string,
+): Promise<unknown | null> {
+  try {
+    const response = await fetch(chatCompletionsEndpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: env.OPENAI_MODEL,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You return JSON that conforms to the requested schema. Respond with JSON only — no prose, no code fences.",
+          },
+          {
+            role: "user",
+            content: `${prompt}\n\nRequired JSON schema:\n${JSON.stringify(schema)}`,
+          },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await safeReadText(response);
+      console.warn(
+        `[ai:${name}] chat completions ${response.status} model=${env.OPENAI_MODEL} err=${errorBody.slice(0, 300)}`,
+      );
+      return null;
+    }
+
+    const body = (await response.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const content = body.choices?.[0]?.message?.content ?? "";
+
+    if (!content) {
+      console.warn(
+        `[ai:${name}] chat completions returned empty content model=${env.OPENAI_MODEL}`,
+      );
+      return null;
+    }
+
+    return parseJsonPayload(content);
+  } catch (error) {
+    console.warn(
+      `[ai:${name}] chat completions threw ${error instanceof Error ? error.message : "unknown"}`,
+    );
+    return null;
+  }
+}
+
+async function safeReadText(response: Response): Promise<string> {
+  try {
+    return await response.text();
+  } catch {
+    return "";
+  }
+}
+
+function parseJsonPayload(raw: string): unknown | null {
+  const cleaned = stripJsonFence(raw);
+  try {
+    return JSON.parse(cleaned) as unknown;
   } catch {
     return null;
   }
+}
+
+function stripJsonFence(raw: string): string {
+  const trimmed = raw.trim();
+  const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fenceMatch && fenceMatch[1]) {
+    return fenceMatch[1].trim();
+  }
+  return trimmed;
 }
 
 function extractOutputText(body: unknown): string {
