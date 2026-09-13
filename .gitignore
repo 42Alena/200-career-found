@@ -45,3 +45,4 @@ next-env.d.ts
 #alena's settings
 .devtainer/
 .claude/settings.local.json
+.pnpm-store/
