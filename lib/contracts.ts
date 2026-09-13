@@ -142,6 +142,7 @@ export const LearningPlanDaySchema = z.object({
   task: z.string().min(1),
   timeEstimateMinutes: z.number().int().min(15).max(360),
   expectedOutput: z.string().min(1),
+  doneWhen: z.string().optional().default(""),
   completed: z.boolean().default(false),
   notes: z.string().optional().default(""),
 });

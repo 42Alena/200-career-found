@@ -138,17 +138,16 @@ const RATING_CHOICES: {
 ];
 
 const ANALYSIS_STAGES = [
-  "Understanding your experience…",
-  "Finding transferable skills…",
-  "Comparing patterns with IT roles…",
-  "Preparing your profile…",
+  "Reading your background…",
+  "Identifying transferable skills…",
+  "Structuring your profile so you can review it…",
 ];
 
 const PIPELINE_STAGES = [
   "Reviewing your answers…",
-  "Comparing with real job descriptions…",
-  "Ranking realistic paths for you…",
-  "Assembling evidence & gaps…",
+  "Analyzing your experience against our prepared job dataset…",
+  "Ranking realistic directions and pulling evidence…",
+  "Assembling strengths and gaps for each path…",
 ];
 
 const WEEK_META: {
@@ -218,6 +217,7 @@ export function CareerFoundApp() {
     stages: string[];
     heading: string;
     chips: string[];
+    grounding?: string;
   } | null>(null);
   const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({});
 
@@ -384,6 +384,8 @@ export function CareerFoundApp() {
       heading: "Reading your story",
       stages: ANALYSIS_STAGES,
       chips: extractChips(cvText),
+      grounding:
+        "Extraction happens on the text you submitted — no external lookups.",
     });
     try {
       const payload = await requestJson<BackgroundPayload>("/api/background", {
@@ -486,6 +488,8 @@ export function CareerFoundApp() {
       chips: extractChips(
         `${cvText} ${Object.values(combinedAnswers).join(" ")}`,
       ),
+      grounding:
+        "Grounded in a prepared dataset of real job descriptions — not a live search.",
     });
     try {
       const assessmentPayload = await requestJson<AssessmentPayload>(
@@ -586,9 +590,11 @@ export function CareerFoundApp() {
         "Reviewing your skill gaps…",
         "Sequencing daily focus…",
         "Sizing each task to your daily minutes…",
-        "Finishing your plan…",
+        "Writing done-when criteria for every day…",
       ],
       chips: selectedRecommendation.essentialGaps.slice(0, 6),
+      grounding:
+        "Plan tailored to your selected path and your rated gaps.",
     });
     try {
       const ratings = ensureRatingsForRecommendation(
@@ -673,8 +679,17 @@ export function CareerFoundApp() {
     setSkillRatings([]);
     setQuestionIndex(0);
     setSelectedRoleId("");
-    setView("landing");
+    setShowOptionalSources(false);
+    setExpandedDays({});
+    setBusyLabel("");
+    setAnalysis(null);
     setNotice(null);
+    setView("landing");
+    try {
+      window.localStorage.removeItem(workspaceStorageKey(workspaceId));
+    } catch {
+      // ignore storage failures — server-side save below is authoritative
+    }
     void saveWorkspace(fresh, { silent: true });
   }
 
@@ -697,7 +712,27 @@ export function CareerFoundApp() {
     <main className="app-shell">
       <aside className="sidebar" aria-label="Workflow">
         <div className="sidebar__brand">
-          <BrandLockup />
+          <a
+            className="sidebar__brand-link"
+            href="/"
+            aria-label="Career Found — back to landing"
+            onClick={(event) => {
+              if (
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey ||
+                event.button !== 0
+              ) {
+                return;
+              }
+              event.preventDefault();
+              setView("landing");
+              setNotice(null);
+            }}
+          >
+            <BrandLockup />
+          </a>
           <span className="sidebar__brand-tag">
             Experience → evidence → action
           </span>
@@ -708,6 +743,7 @@ export function CareerFoundApp() {
             const isActive = item.key === step;
             const isComplete = index < maxReachedStep;
             const isLocked = index > maxReachedStep;
+            const isBusy = Boolean(busyLabel);
             const stateClass = isActive
               ? "is-active"
               : isComplete
@@ -721,8 +757,11 @@ export function CareerFoundApp() {
                 className={`step-link ${stateClass}`.trim()}
                 type="button"
                 aria-current={isActive ? "step" : undefined}
-                aria-disabled={isLocked || undefined}
-                onClick={() => (isLocked ? undefined : goToStep(item.key))}
+                aria-disabled={isLocked || isBusy || undefined}
+                disabled={isBusy && !isActive}
+                onClick={() =>
+                  isLocked || isBusy ? undefined : goToStep(item.key)
+                }
               >
                 <span className="step-link__marker" aria-hidden="true">
                   {isComplete ? "✓" : item.short}
@@ -773,6 +812,7 @@ export function CareerFoundApp() {
           heading={analysis.heading}
           stages={analysis.stages}
           chips={analysis.chips}
+          grounding={analysis.grounding}
         />
       ) : null}
     </main>
@@ -1123,6 +1163,22 @@ export function CareerFoundApp() {
                 (source) => source.roleTitle === recommendation.title,
               ) ?? [];
             const tier = matchTier(recommendation.matchScore, index);
+            const userText = [
+              cvText,
+              profile.background,
+              profile.goal,
+              profile.currentRole,
+              answers.preferredWork,
+              answers.projectExperience,
+              answers.independentContributions,
+              answers.careerInterests,
+            ]
+              .filter(Boolean)
+              .join(" ");
+            const evidenceMatches = personalizedEvidence(
+              recommendation,
+              userText,
+            );
 
             return (
               <article className="role-card" key={recommendation.id}>
@@ -1136,10 +1192,27 @@ export function CareerFoundApp() {
                   </span>
                 </div>
 
-                <p className="role-card__reason">
-                  {recommendation.matchingStrengths[0] ??
-                    recommendation.summary}
-                </p>
+                <div className="role-card__section role-card__section--reason">
+                  <span className="role-card__section-title">
+                    Why this fits you
+                  </span>
+                  <p className="role-card__reason">
+                    {recommendation.matchingStrengths[0] ??
+                      recommendation.summary}
+                  </p>
+                </div>
+
+                {evidenceMatches.length > 0 ? (
+                  <div className="role-card__section">
+                    <span className="role-card__section-title">
+                      Matched from your background
+                    </span>
+                    <ChipCluster
+                      variant="strength"
+                      items={evidenceMatches}
+                    />
+                  </div>
+                ) : null}
 
                 <div className="role-card__section">
                   <span className="role-card__section-title">
@@ -1164,7 +1237,7 @@ export function CareerFoundApp() {
                 {recommendation.requirementsNeedingConfirmation.length > 0 ? (
                   <div className="role-card__section">
                     <span className="role-card__section-title">
-                      Check before choosing
+                      Things to verify
                     </span>
                     <ChipCluster
                       variant="check"
@@ -1440,6 +1513,12 @@ export function CareerFoundApp() {
                               <strong>Output</strong>
                               <span>{day.expectedOutput}</span>
                             </div>
+                            {day.doneWhen ? (
+                              <div className="plan-day__output">
+                                <strong>Done when</strong>
+                                <span>{day.doneWhen}</span>
+                              </div>
+                            ) : null}
                             <div className="plan-day__notes">
                               <textarea
                                 aria-label={`Notes for ${day.title}`}
@@ -1678,10 +1757,12 @@ function AnalysisOverlay({
   heading,
   stages,
   chips,
+  grounding,
 }: {
   heading: string;
   stages: string[];
   chips: string[];
+  grounding?: string;
 }) {
   const [stageIndex, setStageIndex] = useState(0);
   const [visibleChips, setVisibleChips] = useState<string[]>([]);
@@ -1734,6 +1815,9 @@ function AnalysisOverlay({
         <div className="analysis-card__bar" aria-hidden="true">
           <span />
         </div>
+        {grounding ? (
+          <p className="analysis-card__grounding">{grounding}</p>
+        ) : null}
       </div>
     </div>
   );
@@ -2091,6 +2175,30 @@ function screenLede(step: StepKey, profile: Profile) {
     case "plan":
       return "A focused roadmap from your gaps to portfolio evidence — one day at a time.";
   }
+}
+
+function personalizedEvidence(
+  recommendation: RoleRecommendation,
+  userText: string,
+): string[] {
+  if (!userText) return [];
+  const haystack = userText.toLowerCase();
+  const seen = new Set<string>();
+  const matches: string[] = [];
+  const candidates = [
+    ...recommendation.requirements.essential,
+    ...recommendation.requirements.preferred,
+  ];
+  for (const requirement of candidates) {
+    const key = requirement.name.toLowerCase();
+    if (seen.has(key)) continue;
+    if (haystack.includes(key)) {
+      seen.add(key);
+      matches.push(requirement.name);
+    }
+    if (matches.length >= 4) break;
+  }
+  return matches;
 }
 
 function matchTier(score: number, index: number) {

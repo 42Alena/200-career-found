@@ -143,7 +143,7 @@ export async function generateLearningPlanWithAi(input: {
     properties: {
       plan: learningPlanJsonSchema,
     },
-  }, `${UNTRUSTED_DATA_NOTICE}\n\nCreate one personalized 30-day learning plan as JSON.\n${JSON.stringify(payload)}`);
+  }, `${UNTRUSTED_DATA_NOTICE}\n\nCreate one personalized 30-day learning plan as JSON. Each day must have (a) a specific, concrete task that references the skill, (b) an expectedOutput naming the artifact produced, and (c) a doneWhen criterion that is objectively verifiable (a behavior, a test passing, or something a reader could check without asking the learner). Avoid generic phrasing like "work on X" or "make progress".\n${JSON.stringify(payload)}`);
 
   if (!result) {
     return null;
@@ -513,6 +513,7 @@ const learningPlanDayJsonSchema = {
     "task",
     "timeEstimateMinutes",
     "expectedOutput",
+    "doneWhen",
     "completed",
     "notes",
   ],
@@ -523,6 +524,7 @@ const learningPlanDayJsonSchema = {
     task: { type: "string" },
     timeEstimateMinutes: { type: "number" },
     expectedOutput: { type: "string" },
+    doneWhen: { type: "string" },
     completed: { type: "boolean" },
     notes: { type: "string" },
   },

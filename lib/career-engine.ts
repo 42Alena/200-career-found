@@ -241,6 +241,58 @@ export function generateRecommendations(
   });
 }
 
+type PhaseTemplate = {
+  name: string;
+  task: (skill: string, roleTitle: string) => string;
+  expectedOutput: (skill: string) => string;
+  doneWhen: (skill: string) => string;
+};
+
+const PHASE_TEMPLATES: PhaseTemplate[] = [
+  {
+    name: "Foundation",
+    task: (skill) =>
+      `Read one focused tutorial or intro on ${skill}. Write a 5-bullet cheatsheet in your own words that you can refer back to.`,
+    expectedOutput: () => "A short cheatsheet file (markdown or plain text).",
+    doneWhen: (skill) =>
+      `You can explain ${skill} in two sentences without looking at the tutorial.`,
+  },
+  {
+    name: "Practice",
+    task: (skill) =>
+      `Do 2–3 small hands-on exercises with ${skill}. Copy a working example first, then modify one thing at a time until it breaks and you understand why.`,
+    expectedOutput: () =>
+      "A code/notes file with each exercise and a one-line comment on what you learned.",
+    doneWhen: () =>
+      "You've intentionally broken something and reproduced the fix from memory.",
+  },
+  {
+    name: "Build",
+    task: (skill, roleTitle) =>
+      `Add ${skill} to your ${roleTitle} portfolio mini-project. Focus on one visible feature — no polish yet.`,
+    expectedOutput: () =>
+      "A commit (or dated notes file) that a stranger could open and understand.",
+    doneWhen: () =>
+      "The feature works end-to-end for the happy path on your machine.",
+  },
+  {
+    name: "Prove it",
+    task: (skill) =>
+      `Add a test, screenshot, or short write-up that proves your ${skill} work behaves correctly. Handle one edge case.`,
+    expectedOutput: () =>
+      "A test file, screenshot, or 1-paragraph write-up saved alongside the work.",
+    doneWhen: () =>
+      "Someone else could open the artifact and see the behaviour without asking you.",
+  },
+];
+
+function pickPhase(day: number): PhaseTemplate {
+  if (day <= 7) return PHASE_TEMPLATES[0]!;
+  if (day <= 14) return PHASE_TEMPLATES[1]!;
+  if (day <= 21) return PHASE_TEMPLATES[2]!;
+  return PHASE_TEMPLATES[3]!;
+}
+
 export function buildLearningPlan(
   workspaceId: string,
   recommendation: RoleRecommendation,
@@ -257,13 +309,6 @@ export function buildLearningPlan(
     lowRatedSkillNames.length > 0 ? lowRatedSkillNames : essentialSkillNames;
   const safeFocusSkills =
     focusSkills.length > 0 ? focusSkills : [recommendation.title];
-  const phases = [
-    "Understand the role and set up a small project",
-    "Practice the core workflow",
-    "Build portfolio evidence",
-    "Add quality, polish, and review",
-    "Package the result for applications",
-  ];
 
   return {
     id: createId("plan"),
@@ -273,17 +318,15 @@ export function buildLearningPlan(
     days: Array.from({ length: 30 }, (_, index) => {
       const day = index + 1;
       const skill = safeFocusSkills[index % safeFocusSkills.length]!;
-      const phase = phases[Math.min(phases.length - 1, Math.floor(index / 6))]!;
+      const phase = pickPhase(day);
 
       return {
         day,
-        title: `Day ${day}: ${skill}`,
-        task: `${phase}. Work specifically on ${skill.toLowerCase()} and record what changed.`,
+        title: `${phase.name}: ${skill}`,
+        task: phase.task(skill, recommendation.title),
         timeEstimateMinutes: dailyMinutes,
-        expectedOutput:
-          day % 5 === 0
-            ? "A short reflection with screenshots, links, or notes showing progress."
-            : "A concrete artifact: code, notes, test cases, dashboard, or written explanation.",
+        expectedOutput: phase.expectedOutput(skill),
+        doneWhen: phase.doneWhen(skill),
         completed: false,
         notes: "",
       };
