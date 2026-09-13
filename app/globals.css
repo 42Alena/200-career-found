@@ -1488,9 +1488,30 @@ label > span {
   border-radius: 999px;
   padding: 0.32rem 0.75rem;
   font-size: 0.82rem;
-  cursor: default;
+  cursor: pointer;
   min-height: 2rem;
   font-weight: 500;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.assessment__prompt-chip:hover:not(:disabled) {
+  background: var(--accent-mist);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  transform: none;
+  box-shadow: none;
+}
+
+.assessment__prompt-chip.is-selected {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: #fff;
+}
+
+.assessment__prompt-chip.is-selected:hover:not(:disabled) {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+  color: #fff;
 }
 
 .assessment__textarea {

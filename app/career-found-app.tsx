@@ -48,6 +48,20 @@ const emptyAnswers: AssessmentAnswers = {
   careerInterests: "",
 };
 
+const emptyChipSelections: Record<keyof AssessmentAnswers, string[]> = {
+  preferredWork: [],
+  projectExperience: [],
+  independentContributions: [],
+  careerInterests: [],
+};
+
+function combineChipsAndText(chips: string[], text: string): string {
+  const trimmedText = text.trim();
+  if (chips.length === 0) return trimmedText;
+  const chipStr = chips.join(", ");
+  return trimmedText ? `${chipStr}. ${trimmedText}` : chipStr;
+}
+
 const assessmentQuestions: {
   key: keyof AssessmentAnswers;
   title: string;
@@ -190,6 +204,9 @@ export function CareerFoundApp() {
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
   const [answers, setAnswers] = useState<AssessmentAnswers>(emptyAnswers);
+  const [chipSelections, setChipSelections] = useState<
+    Record<keyof AssessmentAnswers, string[]>
+  >(emptyChipSelections);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedRoleId, setSelectedRoleId] = useState("");
   const [skillRatings, setSkillRatings] = useState<SkillRating[]>([]);
@@ -413,10 +430,16 @@ export function CareerFoundApp() {
       return;
     }
 
-    if (answers[question.key].trim().length < 8) {
+    const combined = combineChipsAndText(
+      chipSelections[question.key],
+      answers[question.key],
+    );
+
+    if (combined.length < 8) {
       setNotice({
         tone: "error",
-        message: "Add a bit more detail before continuing (at least 8 characters).",
+        message:
+          "Pick a suggestion or add a bit more detail before continuing (at least 8 characters).",
       });
       return;
     }
@@ -436,13 +459,32 @@ export function CareerFoundApp() {
       return;
     }
 
+    const combinedAnswers: AssessmentAnswers = {
+      preferredWork: combineChipsAndText(
+        chipSelections.preferredWork,
+        answers.preferredWork,
+      ),
+      projectExperience: combineChipsAndText(
+        chipSelections.projectExperience,
+        answers.projectExperience,
+      ),
+      independentContributions: combineChipsAndText(
+        chipSelections.independentContributions,
+        answers.independentContributions,
+      ),
+      careerInterests: combineChipsAndText(
+        chipSelections.careerInterests,
+        answers.careerInterests,
+      ),
+    };
+
     setBusyLabel("Finding paths");
     setNotice(null);
     setAnalysis({
       heading: "Matching you to real roles",
       stages: PIPELINE_STAGES,
       chips: extractChips(
-        `${cvText} ${Object.values(answers).join(" ")}`,
+        `${cvText} ${Object.values(combinedAnswers).join(" ")}`,
       ),
     });
     try {
@@ -450,7 +492,7 @@ export function CareerFoundApp() {
         "/api/assessment",
         {
           method: "POST",
-          body: JSON.stringify({ workspaceId, answers }),
+          body: JSON.stringify({ workspaceId, answers: combinedAnswers }),
         },
       );
       hydrateWorkspace(assessmentPayload.workspace);
@@ -627,6 +669,7 @@ export function CareerFoundApp() {
     setLinkedinUrl("");
     setGithubUrl("");
     setAnswers(emptyAnswers);
+    setChipSelections(emptyChipSelections);
     setSkillRatings([]);
     setQuestionIndex(0);
     setSelectedRoleId("");
@@ -970,12 +1013,34 @@ export function CareerFoundApp() {
         <div key={questionIndex} className="assessment__card">
           <h3 className="assessment__question">{question.title}</h3>
           <p className="assessment__hint">{question.hint}</p>
-          <div className="assessment__prompts">
-            {question.prompts.map((prompt) => (
-              <span key={prompt} className="assessment__prompt-chip">
-                {prompt}
-              </span>
-            ))}
+          <div className="assessment__prompts" role="group" aria-label="Suggestions">
+            {question.prompts.map((prompt) => {
+              const isSelected =
+                chipSelections[question.key]?.includes(prompt) ?? false;
+              return (
+                <button
+                  key={prompt}
+                  type="button"
+                  aria-pressed={isSelected}
+                  className={
+                    isSelected
+                      ? "assessment__prompt-chip is-selected"
+                      : "assessment__prompt-chip"
+                  }
+                  onClick={() =>
+                    setChipSelections((current) => {
+                      const existing = current[question.key] ?? [];
+                      const next = existing.includes(prompt)
+                        ? existing.filter((item) => item !== prompt)
+                        : [...existing, prompt];
+                      return { ...current, [question.key]: next };
+                    })
+                  }
+                >
+                  {prompt}
+                </button>
+              );
+            })}
           </div>
           <textarea
             className="assessment__textarea"
