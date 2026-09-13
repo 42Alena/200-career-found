@@ -14,14 +14,22 @@ import type {
   Workspace,
 } from "@/lib/contracts";
 
-const steps: { key: StepKey; label: string }[] = [
-  { key: "background", label: "Experience" },
-  { key: "profile", label: "Profile" },
-  { key: "assessment", label: "Fit questions" },
-  { key: "roles", label: "Career paths" },
-  { key: "skills", label: "Evidence & gaps" },
-  { key: "plan", label: "30-day plan" },
+const STEPS: { key: StepKey; label: string; short: string }[] = [
+  { key: "background", label: "Experience", short: "1" },
+  { key: "profile", label: "Profile", short: "2" },
+  { key: "assessment", label: "Fit questions", short: "3" },
+  { key: "roles", label: "Career paths", short: "4" },
+  { key: "skills", label: "Evidence & gaps", short: "5" },
+  { key: "plan", label: "30-day plan", short: "6" },
 ];
+
+const STEP_INDEX: Record<StepKey, number> = STEPS.reduce(
+  (acc, step, index) => {
+    acc[step.key] = index;
+    return acc;
+  },
+  {} as Record<StepKey, number>,
+);
 
 const emptyProfile: Profile = {
   name: "",
@@ -42,37 +50,102 @@ const emptyAnswers: AssessmentAnswers = {
 
 const assessmentQuestions: {
   key: keyof AssessmentAnswers;
-  label: string;
+  title: string;
+  hint: string;
+  prompts: string[];
   placeholder: string;
 }[] = [
   {
     key: "preferredWork",
-    label: "Preferred work",
-    placeholder: "Interfaces, data, testing, support, systems",
+    title: "What kind of work do you enjoy most?",
+    hint: "Think about the moments you lose track of time. It doesn't have to be technical.",
+    prompts: [
+      "Building interfaces",
+      "Working with data",
+      "Testing things",
+      "Helping users",
+      "Working with systems",
+    ],
+    placeholder:
+      "e.g. I like turning fuzzy briefs into clear structure. I enjoy testing edge cases and finding the one that breaks.",
   },
   {
     key: "projectExperience",
-    label: "Project experience",
-    placeholder: "What you have built, shipped, analyzed, or improved",
+    title: "What have you built, shipped, analyzed, or improved?",
+    hint: "Personal, volunteer, side project or work. Rough sketches count.",
+    prompts: [
+      "Shipped a project",
+      "Automated a task",
+      "Built a dashboard",
+      "Improved a process",
+      "Analyzed data",
+    ],
+    placeholder:
+      "e.g. Built a small tool in Python to clean up shift schedules for my team. Automated a weekly report in Sheets.",
   },
   {
     key: "independentContributions",
-    label: "Independent contributions",
-    placeholder: "Decisions, ownership, fixes, research, documentation",
+    title: "Where have you owned something end-to-end?",
+    hint: "Decisions you made, fixes you led, docs you wrote — not tasks you were handed.",
+    prompts: [
+      "Owned a fix",
+      "Wrote docs",
+      "Made a call",
+      "Led onboarding",
+      "Ran research",
+    ],
+    placeholder:
+      "e.g. Redesigned the onboarding checklist after noticing new hires kept getting stuck at the same step.",
   },
   {
     key: "careerInterests",
-    label: "Career interests",
-    placeholder: "What you want to learn and the work you want to avoid",
+    title: "What would you love to learn — and what would you rather avoid?",
+    hint: "Naming the 'no's is as useful as the 'yes'.",
+    prompts: [
+      "More coding",
+      "More analysis",
+      "Less meetings",
+      "More impact",
+      "More independence",
+    ],
+    placeholder:
+      "e.g. Want to learn SQL and build small services. Would rather avoid pure customer-facing sales.",
   },
 ];
 
-const ratingLabels = [
-  "Not yet",
-  "Aware",
-  "Practiced",
-  "Project use",
-  "Ready",
+const RATING_CHOICES: {
+  value: number;
+  label: string;
+  meta: string;
+}[] = [
+  { value: 0, label: "New to this", meta: "Haven't done it yet" },
+  { value: 2, label: "With help", meta: "Can do it with guidance" },
+  { value: 4, label: "Independently", meta: "I can do this on my own" },
+];
+
+const ANALYSIS_STAGES = [
+  "Understanding your experience…",
+  "Finding transferable skills…",
+  "Comparing patterns with IT roles…",
+  "Preparing your profile…",
+];
+
+const PIPELINE_STAGES = [
+  "Reviewing your answers…",
+  "Comparing with real job descriptions…",
+  "Ranking realistic paths for you…",
+  "Assembling evidence & gaps…",
+];
+
+const WEEK_META: {
+  range: [number, number];
+  title: string;
+  tagline: string;
+}[] = [
+  { range: [1, 7], title: "Week 1", tagline: "Foundation" },
+  { range: [8, 14], title: "Week 2", tagline: "Practice" },
+  { range: [15, 21], title: "Week 3", tagline: "Build" },
+  { range: [22, 30], title: "Week 4", tagline: "Prove it" },
 ];
 
 type Notice = {
@@ -122,6 +195,14 @@ export function CareerFoundApp() {
   const [skillRatings, setSkillRatings] = useState<SkillRating[]>([]);
   const [notice, setNotice] = useState<Notice>(null);
   const [busyLabel, setBusyLabel] = useState("");
+  const [showOptionalSources, setShowOptionalSources] = useState(false);
+  const [view, setView] = useState<"landing" | "app">("landing");
+  const [analysis, setAnalysis] = useState<{
+    stages: string[];
+    heading: string;
+    chips: string[];
+  } | null>(null);
+  const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -134,6 +215,9 @@ export function CareerFoundApp() {
     const cached = readCachedWorkspace(existingId);
     if (cached) {
       hydrateWorkspace(cached);
+      if (hasProgress(cached)) {
+        setView("app");
+      }
     }
 
     void loadWorkspace(existingId, cached, isMounted);
@@ -156,6 +240,9 @@ export function CareerFoundApp() {
           ? payload.workspace
           : cachedWorkspace ?? payload.workspace;
         hydrateWorkspace(nextWorkspace);
+        if (hasProgress(nextWorkspace)) {
+          setView("app");
+        }
 
         if (cachedWorkspace && !hasProgress(payload.workspace)) {
           await saveWorkspace(cachedWorkspace, { silent: true });
@@ -200,6 +287,10 @@ export function CareerFoundApp() {
     const completed = days.filter((day) => day.completed).length;
     return { completed, total: days.length };
   }, [workspace?.learningPlan?.days]);
+
+  const maxReachedStep = useMemo(() => {
+    return STEP_INDEX[workspace?.currentStep ?? "background"] ?? 0;
+  }, [workspace?.currentStep]);
 
   function hydrateWorkspace(nextWorkspace: Workspace) {
     setWorkspace(nextWorkspace);
@@ -262,8 +353,21 @@ export function CareerFoundApp() {
       return;
     }
 
-    setBusyLabel("Analyzing background");
+    if (cvText.trim().length < 20) {
+      setNotice({
+        tone: "error",
+        message: "Add a bit more detail so we can extract something meaningful.",
+      });
+      return;
+    }
+
+    setBusyLabel("Analyzing experience");
     setNotice(null);
+    setAnalysis({
+      heading: "Reading your story",
+      stages: ANALYSIS_STAGES,
+      chips: extractChips(cvText),
+    });
     try {
       const payload = await requestJson<BackgroundPayload>("/api/background", {
         method: "POST",
@@ -275,6 +379,7 @@ export function CareerFoundApp() {
       setNotice(toNotice(error));
     } finally {
       setBusyLabel("");
+      setAnalysis(null);
     }
   }
 
@@ -331,8 +436,15 @@ export function CareerFoundApp() {
       return;
     }
 
-    setBusyLabel("Submitting assessment");
+    setBusyLabel("Finding paths");
     setNotice(null);
+    setAnalysis({
+      heading: "Matching you to real roles",
+      stages: PIPELINE_STAGES,
+      chips: extractChips(
+        `${cvText} ${Object.values(answers).join(" ")}`,
+      ),
+    });
     try {
       const assessmentPayload = await requestJson<AssessmentPayload>(
         "/api/assessment",
@@ -343,7 +455,6 @@ export function CareerFoundApp() {
       );
       hydrateWorkspace(assessmentPayload.workspace);
 
-      setBusyLabel("Inferring candidate roles");
       const rolesPayload = await requestJson<RolesInferPayload>(
         "/api/roles/infer",
         {
@@ -353,7 +464,6 @@ export function CareerFoundApp() {
       );
       hydrateWorkspace(rolesPayload.workspace);
 
-      setBusyLabel("Sourcing job descriptions");
       const jobPayload = await requestJson<JobDescriptionsPayload>(
         "/api/job-descriptions/source",
         {
@@ -367,7 +477,6 @@ export function CareerFoundApp() {
       );
       hydrateWorkspace(jobPayload.workspace);
 
-      setBusyLabel("Generating recommendations");
       const recommendationPayload = await requestJson<RecommendationsPayload>(
         "/api/recommendations/generate",
         {
@@ -379,12 +488,13 @@ export function CareerFoundApp() {
       setStep("roles");
       setNotice({
         tone: "success",
-        message: "Recommendations are ready",
+        message: "Three paths ready",
       });
     } catch (error) {
       setNotice(toNotice(error));
     } finally {
       setBusyLabel("");
+      setAnalysis(null);
     }
   }
 
@@ -426,8 +536,18 @@ export function CareerFoundApp() {
       return;
     }
 
-    setBusyLabel("Saving skill ratings");
+    setBusyLabel("Building your 30-day plan");
     setNotice(null);
+    setAnalysis({
+      heading: "Turning gaps into action",
+      stages: [
+        "Reviewing your skill gaps…",
+        "Sequencing daily focus…",
+        "Sizing each task to your daily minutes…",
+        "Finishing your plan…",
+      ],
+      chips: selectedRecommendation.essentialGaps.slice(0, 6),
+    });
     try {
       const ratings = ensureRatingsForRecommendation(
         selectedRecommendation,
@@ -446,7 +566,6 @@ export function CareerFoundApp() {
       );
       hydrateWorkspace(savedRatings.workspace);
 
-      setBusyLabel("Generating learning plan");
       const planPayload = await requestJson<LearningPlanPayload>(
         "/api/learning-plan/generate",
         {
@@ -459,11 +578,12 @@ export function CareerFoundApp() {
       );
       hydrateWorkspace(planPayload.workspace);
       setStep("plan");
-      setNotice({ tone: "success", message: "Learning plan created" });
+      setNotice({ tone: "success", message: "Your 30-day plan is ready" });
     } catch (error) {
       setNotice(toNotice(error));
     } finally {
       setBusyLabel("");
+      setAnalysis(null);
     }
   }
 
@@ -487,50 +607,114 @@ export function CareerFoundApp() {
     void saveWorkspace(nextWorkspace, { silent: true });
   }
 
+  function toggleDayExpanded(day: number) {
+    setExpandedDays((current) => ({ ...current, [day]: !current[day] }));
+  }
+
+  function goToStep(nextStep: StepKey) {
+    const targetIndex = STEP_INDEX[nextStep];
+    if (targetIndex <= maxReachedStep) {
+      setStep(nextStep);
+      setNotice(null);
+    }
+  }
+
+  function handleReset() {
+    if (!workspaceId) return;
+    const fresh = createClientWorkspace(workspaceId);
+    hydrateWorkspace(fresh);
+    setCvText("");
+    setLinkedinUrl("");
+    setGithubUrl("");
+    setAnswers(emptyAnswers);
+    setSkillRatings([]);
+    setQuestionIndex(0);
+    setSelectedRoleId("");
+    setView("landing");
+    setNotice(null);
+    void saveWorkspace(fresh, { silent: true });
+  }
+
+  if (view === "landing") {
+    return (
+      <>
+        <LandingPage onStart={() => setView("app")} />
+        {analysis ? (
+          <AnalysisOverlay
+            heading={analysis.heading}
+            stages={analysis.stages}
+            chips={analysis.chips}
+          />
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar" aria-label="Workflow">
-        <div className="brand-block">
-          <p className="brand-kicker">200</p>
-          <h1>Career Found</h1>
-          <p>Experience → evidence → action</p>
+        <div className="sidebar__brand">
+          <BrandLockup />
+          <span className="sidebar__brand-tag">
+            Experience → evidence → action
+          </span>
         </div>
 
-        <nav className="step-nav">
-          {steps.map((item, index) => (
-            <button
-              key={item.key}
-              className={item.key === step ? "step-link active" : "step-link"}
-              type="button"
-              onClick={() => setStep(item.key)}
-            >
-              <span>{index + 1}</span>
-              {item.label}
-            </button>
-          ))}
+        <nav className="step-nav" aria-label="Steps">
+          {STEPS.map((item, index) => {
+            const isActive = item.key === step;
+            const isComplete = index < maxReachedStep;
+            const isLocked = index > maxReachedStep;
+            const stateClass = isActive
+              ? "is-active"
+              : isComplete
+                ? "is-complete"
+                : isLocked
+                  ? "is-locked"
+                  : "";
+            return (
+              <button
+                key={item.key}
+                className={`step-link ${stateClass}`.trim()}
+                type="button"
+                aria-current={isActive ? "step" : undefined}
+                aria-disabled={isLocked || undefined}
+                onClick={() => (isLocked ? undefined : goToStep(item.key))}
+              >
+                <span className="step-link__marker" aria-hidden="true">
+                  {isComplete ? "✓" : item.short}
+                </span>
+                {item.label}
+              </button>
+            );
+          })}
         </nav>
 
-        <div className="hackathon-mark">
+        <div className="sidebar__footer">
           <span>Built at</span>
           <strong>AI Women Hackathon Hamburg</strong>
+          <button type="button" onClick={handleReset}>
+            Start over
+          </button>
         </div>
       </aside>
 
       <section className="workspace">
         <header className="workspace-header">
-          <div>
-            <p className="eyebrow">
-              Step {steps.findIndex((item) => item.key === step) + 1} of{" "}
-              {steps.length} · {stepLabel(step)}
-            </p>
-            <h2>{screenTitle(step)}</h2>
+          <div className="workspace-header__meta">
+            Step {STEP_INDEX[step] + 1} of {STEPS.length}
+            <strong>· {stepLabel(step)}</strong>
           </div>
-          <div className="header-status">
-            {busyLabel ? <span className="busy">{busyLabel}</span> : null}
-            {notice ? (
-              <span className={`notice ${notice.tone}`}>{notice.message}</span>
-            ) : null}
-          </div>
+          <h2 className="workspace-header__title">{screenTitle(step)}</h2>
+          <p className="workspace-header__sub">{screenLede(step, profile)}</p>
+          {busyLabel || notice ? (
+            <div className="workspace-header__status">
+              {busyLabel ? <span className="busy">{busyLabel}</span> : null}
+              {notice ? (
+                <span className={`notice ${notice.tone}`}>{notice.message}</span>
+              ) : null}
+            </div>
+          ) : null}
         </header>
 
         {step === "background" ? renderBackground() : null}
@@ -540,100 +724,103 @@ export function CareerFoundApp() {
         {step === "skills" ? renderSkills() : null}
         {step === "plan" ? renderPlan() : null}
       </section>
+
+      {analysis ? (
+        <AnalysisOverlay
+          heading={analysis.heading}
+          stages={analysis.stages}
+          chips={analysis.chips}
+        />
+      ) : null}
     </main>
   );
 
   function renderBackground() {
     return (
-      <div className="landing-layout">
-        <section className="landing-promise">
-          <p className="value-proposition">
-            Get 3 realistic career paths, evidence-backed skill gaps, and a
-            personalized 30-day plan.
-          </p>
-          <div className="value-points" aria-label="What Career Found delivers">
-            <div>
-              <strong>3</strong>
-              <span>career paths</span>
-            </div>
-            <div>
-              <strong>5</strong>
-              <span>jobs per path</span>
-            </div>
-            <div>
-              <strong>Real</strong>
-              <span>skill evidence</span>
-            </div>
-            <div>
-              <strong>30 days</strong>
-              <span>to take action</span>
-            </div>
-          </div>
-          <div className="journey-strip" aria-label="Career Found journey">
-            <span>Your experience</span>
-            <b aria-hidden="true">→</b>
-            <span>Career direction</span>
-            <b aria-hidden="true">→</b>
-            <span>Real job evidence</span>
-            <b aria-hidden="true">→</b>
-            <span>Action plan</span>
-          </div>
-        </section>
+      <div className="experience">
+        <div className="experience__value-strip" role="list">
+          <strong>3 paths</strong>
+          <span aria-hidden="true">•</span>
+          <strong>Real evidence</strong>
+          <span aria-hidden="true">•</span>
+          <strong>Skill gaps</strong>
+          <span aria-hidden="true">•</span>
+          <strong>30-day plan</strong>
+        </div>
 
-        <form
-          className="panel form-grid landing-form"
-          onSubmit={handleBackgroundSubmit}
-        >
-          <div className="wide form-intro">
-            <p className="eyebrow">Start with what you already know</p>
-            <h3>Tell us about your experience</h3>
-          </div>
-          <label className="wide">
-            Resume / experience
+        <form className="experience__form" onSubmit={handleBackgroundSubmit}>
+          <div className="experience__label">
+            <div className="field-heading">
+              <strong>Tell us what you've done</strong>
+              <small>It doesn't need to sound like a CV.</small>
+            </div>
             <textarea
-              className="large-text"
+              className="experience__textarea"
               value={cvText}
               onChange={(event) => setCvText(event.target.value)}
-              placeholder="Paste or dictate your resume, work history, education, tools, and achievements"
+              placeholder="Paste your CV, or describe your work history, education, projects, tools, achievements — anything you think is relevant."
             />
             <VoiceInputButton
               onTranscript={(text) =>
                 setCvText((current) => appendValue(current, text))
               }
             />
-          </label>
-          <div className="wide optional-divider">
-            <span>Optional profiles</span>
           </div>
-          <label>
-            LinkedIn profile URL
-            <input
-              type="url"
-              value={linkedinUrl}
-              onChange={(event) => setLinkedinUrl(event.target.value)}
-              placeholder="https://www.linkedin.com/in/..."
-            />
-          </label>
-          <label>
-            GitHub profile URL
-            <input
-              type="url"
-              value={githubUrl}
-              onChange={(event) => setGithubUrl(event.target.value)}
-              placeholder="https://github.com/..."
-            />
-          </label>
-          <div className="actions wide">
-            <div className="next-step-copy">
-              <strong>Next</strong>
-              <span>Review the profile we extract</span>
+
+          {showOptionalSources ? (
+            <div className="experience__optional">
+              <div className="field-heading">
+                <strong>Optional profile links</strong>
+                <small>We'll read what's public if you add these.</small>
+              </div>
+              <div className="experience__optional-grid">
+                <label>
+                  <span>LinkedIn URL</span>
+                  <input
+                    type="url"
+                    value={linkedinUrl}
+                    onChange={(event) => setLinkedinUrl(event.target.value)}
+                    placeholder="https://www.linkedin.com/in/..."
+                  />
+                </label>
+                <label>
+                  <span>GitHub URL</span>
+                  <input
+                    type="url"
+                    value={githubUrl}
+                    onChange={(event) => setGithubUrl(event.target.value)}
+                    placeholder="https://github.com/..."
+                  />
+                </label>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="experience__optional-toggle"
+              onClick={() => setShowOptionalSources(true)}
+            >
+              + Add LinkedIn or GitHub URL
+            </button>
+          )}
+
+          <div className="experience__submit-row">
+            <div className="experience__submit-copy">
+              <strong>What happens next?</strong>
+              <span>
+                We extract your experience and skills so you can review them
+                before any recommendation is made.
+              </span>
             </div>
             <button
-              className="primary-action"
+              className="cta-primary"
               disabled={Boolean(busyLabel)}
               type="submit"
             >
               Analyze my experience
+              <span className="cta-arrow" aria-hidden="true">
+                →
+              </span>
             </button>
           </div>
         </form>
@@ -643,113 +830,108 @@ export function CareerFoundApp() {
 
   function renderProfile() {
     return (
-      <form className="panel form-grid" onSubmit={handleProfileSubmit}>
-        <p className="wide hint">
-          We drafted this from your background. Edit anything before continuing.
-        </p>
-        <label>
-          Name
-          <input
-            value={profile.name}
-            onChange={(event) =>
-              setProfile({ ...profile, name: event.target.value })
-            }
-            placeholder="Sofia"
-          />
-          <VoiceInputButton
-            onTranscript={(text) =>
-              setProfile((p) => ({ ...p, name: appendValue(p.name, text) }))
-            }
-          />
-        </label>
-        <label>
-          Current role
-          <input
-            value={profile.currentRole}
-            onChange={(event) =>
-              setProfile({ ...profile, currentRole: event.target.value })
-            }
-            placeholder="Customer support, student, operations"
-          />
-          <VoiceInputButton
-            onTranscript={(text) =>
-              setProfile((p) => ({
-                ...p,
-                currentRole: appendValue(p.currentRole, text),
-              }))
-            }
-          />
-        </label>
-        <label>
-          Target location
-          <input
-            value={profile.targetLocation}
-            onChange={(event) =>
-              setProfile({ ...profile, targetLocation: event.target.value })
-            }
-            placeholder="Remote Germany, Berlin, Hamburg, Munich, Frankfurt"
-          />
-          <VoiceInputButton
-            onTranscript={(text) =>
-              setProfile((p) => ({
-                ...p,
-                targetLocation: appendValue(p.targetLocation, text),
-              }))
-            }
-          />
-        </label>
-        <label>
-          Learning time
-          <select
-            value={profile.dailyMinutes}
-            onChange={(event) =>
-              setProfile({
-                ...profile,
-                dailyMinutes: Number(event.target.value) as 15 | 30 | 60,
-              })
-            }
+      <form className="profile-layout" onSubmit={handleProfileSubmit}>
+        <div className="profile-callout">
+          <strong>AI drafted this from your background.</strong>
+          <span>You stay in control — edit anything before continuing.</span>
+        </div>
+
+        <div className="profile-grid">
+          <div className="profile-field profile-field--span-3">
+            <p className="eyebrow">Name</p>
+            <input
+              value={profile.name}
+              onChange={(event) =>
+                setProfile({ ...profile, name: event.target.value })
+              }
+              placeholder="e.g. Sofia"
+            />
+          </div>
+          <div className="profile-field profile-field--span-3">
+            <p className="eyebrow">Current role</p>
+            <input
+              value={profile.currentRole}
+              onChange={(event) =>
+                setProfile({ ...profile, currentRole: event.target.value })
+              }
+              placeholder="Customer support, student, operations…"
+            />
+          </div>
+          <div className="profile-field profile-field--span-4">
+            <p className="eyebrow">Target location</p>
+            <input
+              value={profile.targetLocation}
+              onChange={(event) =>
+                setProfile({ ...profile, targetLocation: event.target.value })
+              }
+              placeholder="Remote Germany, Berlin, Hamburg…"
+            />
+          </div>
+          <div className="profile-field profile-field--span-2">
+            <p className="eyebrow">Daily learning time</p>
+            <select
+              value={profile.dailyMinutes}
+              onChange={(event) =>
+                setProfile({
+                  ...profile,
+                  dailyMinutes: Number(event.target.value) as 15 | 30 | 60,
+                })
+              }
+            >
+              <option value={15}>15 min</option>
+              <option value={30}>30 min</option>
+              <option value={60}>60 min</option>
+            </select>
+          </div>
+          <div className="profile-field profile-field--span-6">
+            <p className="eyebrow">Experience & skills</p>
+            <textarea
+              value={profile.background}
+              onChange={(event) =>
+                setProfile({ ...profile, background: event.target.value })
+              }
+              placeholder="Work history, education, languages, tools, strengths…"
+            />
+            <VoiceInputButton
+              onTranscript={(text) =>
+                setProfile((p) => ({
+                  ...p,
+                  background: appendValue(p.background, text),
+                }))
+              }
+            />
+          </div>
+          <div className="profile-field profile-field--span-6">
+            <p className="eyebrow">What you want next</p>
+            <textarea
+              value={profile.goal}
+              onChange={(event) =>
+                setProfile({ ...profile, goal: event.target.value })
+              }
+              placeholder="The kind of IT role or working style you want next."
+            />
+            <VoiceInputButton
+              onTranscript={(text) =>
+                setProfile((p) => ({ ...p, goal: appendValue(p.goal, text) }))
+              }
+            />
+          </div>
+        </div>
+
+        <div className="experience__submit-row">
+          <div className="experience__submit-copy">
+            <strong>Next</strong>
+            <span>Four short questions to refine your fit.</span>
+          </div>
+          <button
+            className="cta-primary"
+            disabled={Boolean(busyLabel)}
+            type="submit"
           >
-            <option value={15}>15 minutes/day</option>
-            <option value={30}>30 minutes/day</option>
-            <option value={60}>60 minutes/day</option>
-          </select>
-        </label>
-        <label className="wide">
-          Background
-          <textarea
-            value={profile.background}
-            onChange={(event) =>
-              setProfile({ ...profile, background: event.target.value })
-            }
-            placeholder="Work history, education, languages, tools, strengths"
-          />
-          <VoiceInputButton
-            onTranscript={(text) =>
-              setProfile((p) => ({
-                ...p,
-                background: appendValue(p.background, text),
-              }))
-            }
-          />
-        </label>
-        <label className="wide">
-          Goal
-          <textarea
-            value={profile.goal}
-            onChange={(event) =>
-              setProfile({ ...profile, goal: event.target.value })
-            }
-            placeholder="The kind of IT role or working style you want next"
-          />
-          <VoiceInputButton
-            onTranscript={(text) =>
-              setProfile((p) => ({ ...p, goal: appendValue(p.goal, text) }))
-            }
-          />
-        </label>
-        <div className="actions wide">
-          <button disabled={Boolean(busyLabel)} type="submit">
-            Continue to fit questions
+            Looks right — continue
+            <span className="cta-arrow" aria-hidden="true">
+              →
+            </span>
           </button>
         </div>
       </form>
@@ -764,14 +946,39 @@ export function CareerFoundApp() {
     }
 
     return (
-      <div className="panel assessment-conversation">
-        <p className="eyebrow">
-          Question {questionIndex + 1} of {assessmentQuestions.length}
-        </p>
-        <label className="wide">
-          {question.label}
+      <div className="assessment">
+        <div className="assessment__progress">
+          <span className="assessment__progress-count">
+            {questionIndex + 1} / {assessmentQuestions.length}
+          </span>
+          <span className="assessment__dots" aria-hidden="true">
+            {assessmentQuestions.map((_, index) => (
+              <span
+                key={index}
+                className={
+                  index === questionIndex
+                    ? "is-active"
+                    : index < questionIndex
+                      ? "is-done"
+                      : ""
+                }
+              />
+            ))}
+          </span>
+        </div>
+
+        <div key={questionIndex} className="assessment__card">
+          <h3 className="assessment__question">{question.title}</h3>
+          <p className="assessment__hint">{question.hint}</p>
+          <div className="assessment__prompts">
+            {question.prompts.map((prompt) => (
+              <span key={prompt} className="assessment__prompt-chip">
+                {prompt}
+              </span>
+            ))}
+          </div>
           <textarea
-            className="large-text"
+            className="assessment__textarea"
             required
             minLength={8}
             value={answers[question.key]}
@@ -780,33 +987,39 @@ export function CareerFoundApp() {
             }
             placeholder={question.placeholder}
           />
-          <VoiceInputButton
-            onTranscript={(text) =>
-              setAnswers((current) => ({
-                ...current,
-                [question.key]: appendValue(current[question.key], text),
-              }))
-            }
-          />
-        </label>
-        <div className="actions wide">
-          <button
-            className="button-secondary"
-            disabled={Boolean(busyLabel) || questionIndex === 0}
-            type="button"
-            onClick={handleAssessmentBack}
-          >
-            Back
-          </button>
-          <button
-            disabled={Boolean(busyLabel)}
-            type="button"
-            onClick={() => void handleAssessmentNext()}
-          >
-            {questionIndex === assessmentQuestions.length - 1
-              ? "See my 3 career paths"
-              : "Next question"}
-          </button>
+          <div className="assessment__actions">
+            <VoiceInputButton
+              onTranscript={(text) =>
+                setAnswers((current) => ({
+                  ...current,
+                  [question.key]: appendValue(current[question.key], text),
+                }))
+              }
+            />
+            <div className="cluster">
+              <button
+                className="btn-ghost"
+                disabled={Boolean(busyLabel) || questionIndex === 0}
+                type="button"
+                onClick={handleAssessmentBack}
+              >
+                Back
+              </button>
+              <button
+                className="cta-primary"
+                disabled={Boolean(busyLabel)}
+                type="button"
+                onClick={() => void handleAssessmentNext()}
+              >
+                {questionIndex === assessmentQuestions.length - 1
+                  ? "Reveal my 3 paths"
+                  : "Next"}
+                <span className="cta-arrow" aria-hidden="true">
+                  →
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -817,78 +1030,96 @@ export function CareerFoundApp() {
 
     if (recommendations.length === 0) {
       return (
-        <div className="panel empty-state">
-          <p>Submit the assessment to generate suggested roles.</p>
-          <button type="button" onClick={() => setStep("assessment")}>
-            Open assessment
+        <div className="empty-state">
+          <p>Answer a few fit questions and we'll reveal your paths here.</p>
+          <button type="button" onClick={() => goToStep("assessment")}>
+            Continue to questions
           </button>
         </div>
       );
     }
 
     return (
-      <div className="roles-layout">
-        <section className="result-context">
-          <div>
-            <p className="eyebrow">Your experience, translated into options</p>
-            <h3>
-              {profile.name
-                ? `${profile.name}, compare your 3 realistic directions.`
-                : "Compare your 3 realistic directions."}
-            </h3>
-          </div>
+      <div className="results">
+        <div className="results-lead">
+          <p className="eyebrow">Your experience, translated into options</p>
+          <h2>Three paths worth exploring</h2>
           <p>
-            Each path connects your background to recurring requirements from
-            five job descriptions.
+            Grounded in a prepared dataset of real job postings.
+            {profile.name ? ` ${profile.name}, ` : " "}
+            these are directions worth exploring, not qualification guarantees.
           </p>
-        </section>
+        </div>
 
-        <div className="role-grid">
-          {recommendations.map((recommendation) => {
+        <div className="results-grid">
+          {recommendations.map((recommendation, index) => {
             const sources =
               workspace?.jobDescriptions.filter(
                 (source) => source.roleTitle === recommendation.title,
               ) ?? [];
+            const tier = matchTier(recommendation.matchScore, index);
 
             return (
               <article className="role-card" key={recommendation.id}>
-                <div className="role-card-header">
-                  <div>
-                    <p className="eyebrow">
-                      Based on {sources.length} job descriptions
-                    </p>
-                    <h3>{recommendation.title}</h3>
-                  </div>
-                  <div className="match-score">
-                    <span>Experience match</span>
-                    <strong>{recommendation.matchScore}%</strong>
-                  </div>
+                <div className="role-card__header">
+                  <span className={`role-card__label ${tier.className}`}>
+                    {tier.label}
+                  </span>
+                  <h3 className="role-card__title">{recommendation.title}</h3>
+                  <span className="role-card__meta">
+                    Based on {sources.length || 5} prepared job descriptions
+                  </span>
                 </div>
-                <div className="role-fit-summary">
-                  <span>Why it fits you</span>
-                  <p>
-                    {recommendation.matchingStrengths[0] ??
-                      recommendation.summary}
-                  </p>
+
+                <p className="role-card__reason">
+                  {recommendation.matchingStrengths[0] ??
+                    recommendation.summary}
+                </p>
+
+                <div className="role-card__section">
+                  <span className="role-card__section-title">
+                    Your existing strengths
+                  </span>
+                  <ChipCluster
+                    variant="strength"
+                    items={recommendation.matchingStrengths.slice(1, 5)}
+                  />
                 </div>
-                <ListBlock
-                  title="Your existing strengths"
-                  items={recommendation.matchingStrengths.slice(1)}
-                />
-                <ListBlock
-                  title="Skills to build"
-                  items={recommendation.essentialGaps}
-                />
-                <ListBlock
-                  title="Check before choosing"
-                  items={recommendation.requirementsNeedingConfirmation}
-                />
+
+                <div className="role-card__section">
+                  <span className="role-card__section-title">
+                    Skills to build
+                  </span>
+                  <ChipCluster
+                    variant="gap"
+                    items={recommendation.essentialGaps.slice(0, 4)}
+                  />
+                </div>
+
+                {recommendation.requirementsNeedingConfirmation.length > 0 ? (
+                  <div className="role-card__section">
+                    <span className="role-card__section-title">
+                      Check before choosing
+                    </span>
+                    <ChipCluster
+                      variant="check"
+                      items={recommendation.requirementsNeedingConfirmation.slice(
+                        0,
+                        3,
+                      )}
+                    />
+                  </div>
+                ) : null}
+
                 <button
-                  className="role-card-action"
+                  className="role-card__cta"
                   type="button"
                   onClick={() => void handleRoleSelect(recommendation)}
                 >
-                  Choose this path
+                  Explore this path
+                  <span className="cta-arrow" aria-hidden="true">
+                    →
+                  </span>
                 </button>
               </article>
             );
@@ -901,10 +1132,10 @@ export function CareerFoundApp() {
   function renderSkills() {
     if (!selectedRecommendation) {
       return (
-        <div className="panel empty-state">
-          <p>Select a role to assess skills.</p>
-          <button type="button" onClick={() => setStep("roles")}>
-            Open roles
+        <div className="empty-state">
+          <p>Choose a path to see the evidence behind it.</p>
+          <button type="button" onClick={() => goToStep("roles")}>
+            Open career paths
           </button>
         </div>
       );
@@ -914,114 +1145,120 @@ export function CareerFoundApp() {
       (source) => source.roleTitle === selectedRecommendation.title,
     );
 
+    const strengthsRatings = activeRatings.filter((r) => r.rating >= 3);
+    const gapRatings = activeRatings.filter((r) => r.rating <= 1);
+
     return (
       <div className="skills-layout">
-        <section className="selected-path-summary">
-          <div className="selected-path-heading">
+        <div className="skills-hero">
+          <div className="skills-hero__left">
+            <p className="eyebrow">Your selected path</p>
+            <h3 className="skills-hero__title">
+              {selectedRecommendation.title}
+            </h3>
+            <p className="skills-hero__meta">
+              {selectedRecommendation.matchingStrengths[0] ??
+                selectedRecommendation.summary}
+            </p>
             <div>
-              <p className="eyebrow">Your selected path</p>
-              <h3>{selectedRecommendation.title}</h3>
-            </div>
-            <div className="selected-path-actions">
-              <div className="match-score">
-                <span>Experience match</span>
-                <strong>{selectedRecommendation.matchScore}%</strong>
-              </div>
               <button
-                className="button-secondary"
+                className="btn-secondary"
                 type="button"
-                onClick={() => setStep("roles")}
+                onClick={() => goToStep("roles")}
               >
                 Change path
               </button>
             </div>
           </div>
-
-          <div className="path-summary-grid">
-            <article className="path-proof-card why-fit-card">
-              <p className="eyebrow">Why it fits</p>
-              <p>
-                {selectedRecommendation.matchingStrengths[0] ??
-                  selectedRecommendation.summary}
-              </p>
-            </article>
-            <article className="path-proof-card market-proof-card">
-              <p className="eyebrow">Market evidence</p>
-              <strong>{sources.length} job descriptions analyzed</strong>
-              <span>Linked sources below</span>
-            </article>
-            <div className="path-proof-card">
-              <ListBlock
-                title="Your existing strengths"
-                items={selectedRecommendation.matchingStrengths.slice(1)}
-              />
+          <div className="skills-hero__right">
+            <div className="skills-stat">
+              <strong>{sources.length || 5}</strong>
+              <span>Real job descriptions analyzed</span>
             </div>
-            <div className="path-proof-card gaps-card">
-              <ListBlock
-                title="Your main gaps"
-                items={selectedRecommendation.essentialGaps}
-              />
+            <div className="skills-stat">
+              <strong>
+                {selectedRecommendation.requirements.essential.length +
+                  selectedRecommendation.requirements.preferred.length}
+              </strong>
+              <span>Recurring skills identified</span>
+            </div>
+            <div className="skills-stat">
+              <strong>{strengthsRatings.length}</strong>
+              <span>Strengths you already bring</span>
+            </div>
+            <div className="skills-stat">
+              <strong>{gapRatings.length}</strong>
+              <span>Priority gaps to close</span>
             </div>
           </div>
-        </section>
+        </div>
 
-        <section className="panel evidence-panel">
-          <div className="market-evidence">
+        <div className="skills-columns">
+          <section className="skills-column">
             <div>
-              <p className="eyebrow">Market evidence</p>
-              <strong>Requirements repeated across real job descriptions</strong>
+              <h4 className="skills-column__title">What the role requires</h4>
+              <p className="skills-column__hint">
+                Essential skills the market repeats across job descriptions.
+              </p>
             </div>
-            <p>
-              These are not generic AI suggestions. Every frequency below is
-              connected to the linked job sources where it appeared.
-            </p>
-          </div>
+            {selectedRecommendation.requirements.essential.map((skill) => (
+              <SkillCard
+                key={skill.id}
+                skill={skill}
+                sources={sources}
+                totalSources={sources.length || 5}
+                ratings={activeRatings}
+                onChange={updateRating}
+              />
+            ))}
+          </section>
 
-          <div
-            className="evidence-flow"
-            aria-label="How skill gaps are calculated"
+          <section className="skills-column skills-column--gap">
+            <div>
+              <h4 className="skills-column__title">Preferred to stand out</h4>
+              <p className="skills-column__hint">
+                Nice-to-haves — building even one meaningfully lifts your
+                positioning.
+              </p>
+            </div>
+            {selectedRecommendation.requirements.preferred.map((skill) => (
+              <SkillCard
+                key={skill.id}
+                skill={skill}
+                sources={sources}
+                totalSources={sources.length || 5}
+                ratings={activeRatings}
+                onChange={updateRating}
+              />
+            ))}
+            {selectedRecommendation.requirements.preferred.length === 0 ? (
+              <p className="skills-column__hint">
+                No preferred skills stood out this time.
+              </p>
+            ) : null}
+          </section>
+        </div>
+
+        <div className="plan-cta-row">
+          <div className="plan-cta-row__copy">
+            <strong>Ready to act on this?</strong>
+            <span>
+              Turn your gaps into a {profile.dailyMinutes}-minute daily plan
+              across the next 30 days.
+            </span>
+          </div>
+          <button
+            className="cta-primary"
+            disabled={Boolean(busyLabel)}
+            type="button"
+            onClick={() => void handleSaveRatingsAndPlan()}
           >
-            <span>Real jobs</span>
-            <b aria-hidden="true">→</b>
-            <span>Recurring skills</span>
-            <b aria-hidden="true">→</b>
-            <span>Your current level</span>
-            <b aria-hidden="true">→</b>
-            <span>Your gap</span>
-          </div>
-
-          <SkillSection
-            sources={sources}
-            requirements={selectedRecommendation.requirements.essential}
-            ratings={activeRatings}
-            title="Essential skills"
-            onChange={updateRating}
-          />
-          <SkillSection
-            sources={sources}
-            requirements={selectedRecommendation.requirements.preferred}
-            ratings={activeRatings}
-            title="Preferred skills"
-            onChange={updateRating}
-          />
-
-          <div className="actions plan-cta-row">
-            <div className="next-step-copy">
-              <strong>Next</strong>
-              <span>
-                Turn your gaps into a {profile.dailyMinutes}-minute daily plan
-              </span>
-            </div>
-            <button
-              className="primary-action"
-              disabled={Boolean(busyLabel)}
-              type="button"
-              onClick={() => void handleSaveRatingsAndPlan()}
-            >
-              Build my 30-day plan
-            </button>
-          </div>
-        </section>
+            Build my 30-day plan
+            <span className="cta-arrow" aria-hidden="true">
+              →
+            </span>
+          </button>
+        </div>
       </div>
     );
   }
@@ -1031,206 +1268,515 @@ export function CareerFoundApp() {
 
     if (!plan) {
       return (
-        <div className="panel empty-state">
-          <p>Complete the skills assessment to create a 30-day plan.</p>
-          <button type="button" onClick={() => setStep("skills")}>
-            Open skills
+        <div className="empty-state">
+          <p>Rate your skills to generate your 30-day plan.</p>
+          <button type="button" onClick={() => goToStep("skills")}>
+            Open evidence & gaps
           </button>
         </div>
       );
     }
 
+    const ringValue =
+      planProgress.total === 0
+        ? 0
+        : Math.round((planProgress.completed / planProgress.total) * 100);
+
     return (
       <div className="plan-layout">
-        <section className="panel plan-summary">
-          <div className="plan-summary-heading">
-            <div>
-              <p className="eyebrow">Your career direction</p>
-              <h3>{plan.roleTitle}</h3>
-            </div>
-            <div className="plan-commitment">
-              <strong>{profile.dailyMinutes} min</strong>
-              <span>per day</span>
+        <section className="plan-summary">
+          <div>
+            <p className="eyebrow">Your direction</p>
+            <h3 className="plan-summary__title">{plan.roleTitle}</h3>
+            <p className="plan-summary__sub">
+              Built around your selected path, skill gaps, and{" "}
+              {profile.dailyMinutes} minutes a day. Progress is saved on this
+              device.
+            </p>
+          </div>
+          <div
+            className="plan-ring"
+            style={{ ["--value" as string]: ringValue } as React.CSSProperties}
+            role="img"
+            aria-label={`${planProgress.completed} of ${planProgress.total} days complete`}
+          >
+            <div className="plan-ring__inner">
+              <strong>
+                {planProgress.completed}/{planProgress.total}
+              </strong>
+              <span>days</span>
             </div>
           </div>
-          <div className="plan-progress-copy">
-            <strong>
-              {planProgress.completed} of {planProgress.total} days complete
-            </strong>
-            <span>
-              Your focused roadmap from skill gaps to portfolio evidence.
-            </span>
-          </div>
-          <progress max={planProgress.total} value={planProgress.completed} />
         </section>
 
-        <section className="plan-list">
-          {plan.days.map((day) => (
-            <article
-              className={day.completed ? "plan-day completed" : "plan-day"}
-              key={day.day}
-            >
-              <label className="check-row">
-                <input
-                  checked={day.completed}
-                  type="checkbox"
-                  onChange={(event) =>
-                    updatePlanDay(day.day, { completed: event.target.checked })
-                  }
-                />
-                <span>{day.title}</span>
-              </label>
-              <p>{day.task}</p>
-              <div className="plan-meta">
-                <span className="duration-chip">
-                  {day.timeEstimateMinutes} min
-                </span>
-                <span>
-                  <strong>Output:</strong> {day.expectedOutput}
-                </span>
-              </div>
-              <div className="plan-notes-row">
-                <textarea
-                  aria-label={`Notes for ${day.title}`}
-                  className="plan-notes"
-                  rows={2}
-                  value={day.notes}
-                  onChange={(event) =>
-                    updatePlanDay(day.day, { notes: event.target.value })
-                  }
-                  placeholder="Add a note or link to your work"
-                />
-                <VoiceInputButton
-                  onTranscript={(text) =>
-                    updatePlanDay(day.day, {
-                      notes: appendValue(day.notes, text),
-                    })
-                  }
-                />
-              </div>
-            </article>
-          ))}
-        </section>
+        <div className="plan-weeks">
+          {WEEK_META.map((week) => {
+            const days = plan.days.filter(
+              (day) => day.day >= week.range[0] && day.day <= week.range[1],
+            );
+            const complete = days.filter((day) => day.completed).length;
+            return (
+              <section className="plan-week" key={week.title}>
+                <div className="plan-week__header">
+                  <h4 className="plan-week__title">
+                    {week.title}
+                    <em>{week.tagline}</em>
+                  </h4>
+                  <span className="plan-week__progress">
+                    {complete} / {days.length} complete
+                  </span>
+                </div>
+                <div className="plan-days">
+                  {days.map((day) => {
+                    const isOpen = expandedDays[day.day] ?? false;
+                    return (
+                      <article
+                        key={day.day}
+                        className={day.completed ? "plan-day is-complete" : "plan-day"}
+                      >
+                        <div className="plan-day__summary">
+                          <span className="plan-day__day">
+                            {String(day.day).padStart(2, "0")}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            onClick={() => toggleDayExpanded(day.day)}
+                            style={{
+                              textAlign: "left",
+                              padding: 0,
+                              minHeight: "auto",
+                              background: "transparent",
+                              border: 0,
+                              justifySelf: "start",
+                            }}
+                          >
+                            <div className="plan-day__title">{day.title}</div>
+                            <div className="plan-day__meta">
+                              {day.timeEstimateMinutes} min · {day.expectedOutput}
+                            </div>
+                          </button>
+                          <input
+                            className="plan-day__check"
+                            type="checkbox"
+                            aria-label={`Mark ${day.title} complete`}
+                            checked={day.completed}
+                            onChange={(event) =>
+                              updatePlanDay(day.day, {
+                                completed: event.target.checked,
+                              })
+                            }
+                          />
+                        </div>
+                        {isOpen ? (
+                          <div className="plan-day__body">
+                            <p className="plan-day__task">{day.task}</p>
+                            <div className="plan-day__output">
+                              <strong>Output</strong>
+                              <span>{day.expectedOutput}</span>
+                            </div>
+                            <div className="plan-day__notes">
+                              <textarea
+                                aria-label={`Notes for ${day.title}`}
+                                rows={2}
+                                value={day.notes}
+                                onChange={(event) =>
+                                  updatePlanDay(day.day, {
+                                    notes: event.target.value,
+                                  })
+                                }
+                                placeholder="Add a note or link to your work"
+                              />
+                              <VoiceInputButton
+                                onTranscript={(text) =>
+                                  updatePlanDay(day.day, {
+                                    notes: appendValue(day.notes, text),
+                                  })
+                                }
+                              />
+                            </div>
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
       </div>
     );
   }
 }
 
-function ListBlock({ title, items }: { title: string; items: string[] }) {
+/* ---------- Landing ---------- */
+
+function LandingPage({ onStart }: { onStart: () => void }) {
   return (
-    <div className="list-block">
-      <h4>{title}</h4>
-      <ul>
-        {items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
+    <div className="landing">
+      <header className="landing-topbar">
+        <BrandLockup />
+        <div className="landing-topbar__meta">
+          Built at AI Women Hackathon Hamburg
+        </div>
+      </header>
+
+      <section className="landing-hero">
+        <div className="landing-hero__copy">
+          <span className="landing-eyebrow">A new way to find your fit</span>
+          <h1 className="landing-hero__title">
+            Not sure which <em>IT role</em> fits your experience?
+          </h1>
+          <p className="landing-hero__lede">
+            Career Found turns what you already know into realistic IT career
+            paths. AI reads your background, compares it to real job
+            requirements, and shows you what to do next.
+          </p>
+          <div className="landing-hero__actions">
+            <button className="cta-primary" type="button" onClick={onStart}>
+              Find my career path
+              <span className="cta-arrow" aria-hidden="true">
+                →
+              </span>
+            </button>
+            <span className="cta-meta">Takes about 5 minutes</span>
+          </div>
+          <div className="landing-promises" role="list">
+            <span>3 realistic career paths</span>
+            <span>Real job evidence</span>
+            <span>Personalized 30-day plan</span>
+          </div>
+        </div>
+
+        <HeroVisual />
+      </section>
+
+      <section className="landing-section landing-section--divider">
+        <div className="section-lede">
+          <p className="eyebrow">The transformation</p>
+          <h2>Messy experience becomes a clear direction.</h2>
+        </div>
+        <div className="journey" role="list">
+          <div className="journey-step">
+            <span className="journey-step__num">01</span>
+            <span className="journey-step__title">Your experience</span>
+            <span className="journey-step__meta">
+              Work, education, projects, tools.
+            </span>
+          </div>
+          <div className="journey-step journey-step--center">
+            <span className="journey-step__num">02</span>
+            <span className="journey-step__title">AI analysis</span>
+            <span className="journey-step__meta">
+              Extracts skills, patterns, and signals.
+            </span>
+          </div>
+          <div className="journey-step">
+            <span className="journey-step__num">03</span>
+            <span className="journey-step__title">Real job evidence</span>
+            <span className="journey-step__meta">
+              Compared against real job requirements.
+            </span>
+          </div>
+          <div className="journey-step">
+            <span className="journey-step__num">04</span>
+            <span className="journey-step__title">Career direction</span>
+            <span className="journey-step__meta">
+              Three paths that actually fit you.
+            </span>
+          </div>
+          <div className="journey-step">
+            <span className="journey-step__num">05</span>
+            <span className="journey-step__title">30-day plan</span>
+            <span className="journey-step__meta">
+              Concrete, daily action for the next month.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-section landing-section--divider">
+        <div className="section-lede">
+          <p className="eyebrow">How it works</p>
+          <h2>Four steps, roughly five minutes.</h2>
+        </div>
+        <div className="how">
+          <div className="how-item">
+            <span className="how-num">01</span>
+            <span className="how-title">Tell us what you've done</span>
+            <p className="how-copy">
+              Work, education, projects, tools and skills — however messy.
+            </p>
+          </div>
+          <div className="how-item">
+            <span className="how-num">02</span>
+            <span className="how-title">Discover where you fit</span>
+            <p className="how-copy">
+              AI compares your experience with real job requirements.
+            </p>
+          </div>
+          <div className="how-item">
+            <span className="how-num">03</span>
+            <span className="how-title">See the evidence</span>
+            <p className="how-copy">
+              Understand why a role fits and which skills matter.
+            </p>
+          </div>
+          <div className="how-item">
+            <span className="how-num">04</span>
+            <span className="how-title">Take action</span>
+            <p className="how-copy">
+              Get a personalized 30-day plan you can start today.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="landing-trust">
+        <span>
+          <span className="landing-trust__dot" aria-hidden="true" />
+          Recommendations are grounded in a prepared dataset of real job
+          postings. Directions to explore, not qualification guarantees.
+        </span>
+        <button className="cta-primary" type="button" onClick={onStart}>
+          Find my career path
+          <span className="cta-arrow" aria-hidden="true">
+            →
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
 
-function SkillSection({
-  title,
-  sources,
-  requirements,
-  ratings,
-  onChange,
-}: {
-  title: string;
-  sources: JobDescriptionSource[];
-  requirements: SkillRequirement[];
-  ratings: SkillRating[];
-  onChange: (skill: SkillRequirement, patch: Partial<SkillRating>) => void;
-}) {
+function BrandLockup() {
   return (
-    <section className="skill-section">
-      <div className="skill-section-heading">
-        <h4>{title}</h4>
-        <span>Rate your level and add an example if you have one.</span>
-      </div>
-      <div className="skill-list">
-        {requirements.map((skill) => {
-          const rating = ratings.find((item) => item.skillId === skill.id) ?? {
-            skillId: skill.id,
-            skillName: skill.name,
-            rating: 0,
-            evidence: "",
-          };
-          const evidenceSources = sources.filter((source) =>
-            skill.sourceIds.includes(source.id),
-          );
-
-          return (
-            <div className="skill-row" key={skill.id}>
-              <div className="skill-details">
-                <div className="skill-heading">
-                  <strong>{skill.name}</strong>
-                  <span className={`skill-category ${skill.category}`}>
-                    {skill.category === "essential" ? "Essential" : "Preferred"}
-                  </span>
-                  <span className="source-count">
-                    Found in {skill.sourceCount} of {sources.length || 5} jobs
-                  </span>
-                </div>
-                <p>{skill.evidence}</p>
-                <ul className="evidence-links" aria-label={`${skill.name} sources`}>
-                  {evidenceSources.slice(0, 2).map((source) => (
-                    <li key={source.id}>
-                      <a href={source.url} target="_blank" rel="noreferrer">
-                        {source.company} · {source.title} ↗
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="skill-rating-controls">
-                <label className="level-field">
-                  <span>Your current level</span>
-                  <select
-                    aria-label={`Rate your ${skill.name} skill`}
-                    value={rating.rating}
-                    onChange={(event) =>
-                      onChange(skill, { rating: Number(event.target.value) })
-                    }
-                  >
-                    {ratingLabels.map((label, index) => (
-                      <option key={label} value={index}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="experience-field">
-                  <span>Evidence from your experience</span>
-                  <input
-                    aria-label={`${skill.name} experience`}
-                    value={rating.evidence}
-                    onChange={(event) =>
-                      onChange(skill, { evidence: event.target.value })
-                    }
-                    placeholder="Optional example"
-                  />
-                </label>
-                <VoiceInputButton
-                  onTranscript={(text) =>
-                    onChange(skill, {
-                      evidence: appendValue(rating.evidence, text),
-                    })
-                  }
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+    <div className="brand-lockup">
+      <span className="brand-glyph" aria-hidden="true">
+        cf
+      </span>
+      <span className="sidebar__brand-title">Career Found</span>
+    </div>
   );
 }
 
-/**
- * Records a short clip and posts it to /api/voice/transcribe (ElevenLabs STT).
- * Typing remains the fallback path whenever recording/transcription fails.
- */
+function HeroVisual() {
+  return (
+    <div className="hero-visual" aria-hidden="true">
+      <div className="hero-visual__grid" />
+      <svg className="hero-lines" viewBox="0 0 400 380" preserveAspectRatio="none">
+        <path d="M60 60 C 130 90, 170 160, 200 200" />
+        <path d="M60 200 C 130 200, 170 200, 200 200" />
+        <path d="M60 320 C 130 300, 170 240, 200 200" />
+        <path d="M200 200 C 250 180, 300 100, 360 70" />
+        <path d="M200 200 C 260 200, 320 200, 360 200" />
+        <path d="M200 200 C 260 240, 320 300, 360 330" />
+      </svg>
+
+      <span className="hero-chip hero-chip--1">Customer support</span>
+      <span className="hero-chip hero-chip--2">Python</span>
+      <span className="hero-chip hero-chip--3">Project coordination</span>
+      <span className="hero-chip hero-chip--4">SQL</span>
+      <span className="hero-chip hero-chip--5">Teaching</span>
+      <span className="hero-chip hero-chip--6">Operations</span>
+
+      <div className="hero-node">
+        <span>Career Found</span>
+        <small>AI analysis</small>
+      </div>
+
+      <div className="hero-cards">
+        <div className="hero-card hero-card--1">
+          <div className="hero-card__label">Strong direction</div>
+          <div className="hero-card__title">QA Engineer</div>
+          <div className="hero-card__meta">5 job descriptions matched</div>
+        </div>
+        <div className="hero-card hero-card--2">
+          <div className="hero-card__label">Worth exploring</div>
+          <div className="hero-card__title">IT Support Specialist</div>
+          <div className="hero-card__meta">5 job descriptions matched</div>
+        </div>
+        <div className="hero-card hero-card--3">
+          <div className="hero-card__label">Stretch direction</div>
+          <div className="hero-card__title">Junior Backend Dev</div>
+          <div className="hero-card__meta">5 job descriptions matched</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Analysis overlay ---------- */
+
+function AnalysisOverlay({
+  heading,
+  stages,
+  chips,
+}: {
+  heading: string;
+  stages: string[];
+  chips: string[];
+}) {
+  const [stageIndex, setStageIndex] = useState(0);
+  const [visibleChips, setVisibleChips] = useState<string[]>([]);
+
+  useEffect(() => {
+    setStageIndex(0);
+    const stageInterval = window.setInterval(() => {
+      setStageIndex((current) =>
+        current < stages.length - 1 ? current + 1 : current,
+      );
+    }, 1100);
+    return () => window.clearInterval(stageInterval);
+  }, [stages]);
+
+  useEffect(() => {
+    setVisibleChips([]);
+    if (chips.length === 0) return;
+    const chipInterval = window.setInterval(() => {
+      setVisibleChips((current) => {
+        if (current.length >= chips.length) {
+          return current;
+        }
+        return chips.slice(0, current.length + 1);
+      });
+    }, 260);
+    return () => window.clearInterval(chipInterval);
+  }, [chips]);
+
+  return (
+    <div className="analysis-overlay" role="status" aria-live="polite">
+      <div className="analysis-card">
+        <div className="analysis-card__glow" aria-hidden="true">
+          <span>cf</span>
+        </div>
+        <h3>{heading}</h3>
+        <div className="analysis-card__stage" key={stageIndex}>
+          {stages[stageIndex]}
+        </div>
+        <div className="analysis-card__chips" aria-hidden="true">
+          {visibleChips.map((chip, index) => (
+            <span
+              key={`${chip}-${index}`}
+              className="analysis-chip"
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+        <div className="analysis-card__bar" aria-hidden="true">
+          <span />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Chip cluster ---------- */
+
+function ChipCluster({
+  items,
+  variant,
+}: {
+  items: string[];
+  variant: "strength" | "gap" | "check";
+}) {
+  if (items.length === 0) {
+    return <span className="chip chip--check">—</span>;
+  }
+  return (
+    <div className="chip-cluster">
+      {items.map((item) => (
+        <span key={item} className={`chip chip--${variant}`}>
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Skill card ---------- */
+
+function SkillCard({
+  skill,
+  sources,
+  totalSources,
+  ratings,
+  onChange,
+}: {
+  skill: SkillRequirement;
+  sources: JobDescriptionSource[];
+  totalSources: number;
+  ratings: SkillRating[];
+  onChange: (skill: SkillRequirement, patch: Partial<SkillRating>) => void;
+}) {
+  const rating = ratings.find((item) => item.skillId === skill.id) ?? {
+    skillId: skill.id,
+    skillName: skill.name,
+    rating: 0,
+    evidence: "",
+  };
+  const evidenceSources = sources.filter((source) =>
+    skill.sourceIds.includes(source.id),
+  );
+
+  return (
+    <div className="skill-item">
+      <div className="skill-item__head">
+        <span className="skill-item__name">{skill.name}</span>
+        <span className="skill-item__badges">
+          <span className={`badge badge--${skill.category}`}>
+            {skill.category === "essential" ? "Essential" : "Preferred"}
+          </span>
+          <span className="badge badge--freq">
+            {skill.sourceCount} of {totalSources || 5} jobs
+          </span>
+        </span>
+      </div>
+      <p className="skill-item__evidence">{skill.evidence}</p>
+      {evidenceSources.length > 0 ? (
+        <ul className="skill-item__sources" aria-label={`${skill.name} sources`}>
+          {evidenceSources.slice(0, 2).map((source) => (
+            <li key={source.id}>
+              <a href={source.url} target="_blank" rel="noreferrer">
+                {source.company || source.title} ↗
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="skill-item__rating" role="radiogroup" aria-label={`Rate ${skill.name}`}>
+        {RATING_CHOICES.map((choice) => (
+          <button
+            key={choice.value}
+            type="button"
+            role="radio"
+            aria-checked={rating.rating === choice.value}
+            className={`rating-choice ${rating.rating === choice.value ? "is-selected" : ""}`.trim()}
+            onClick={() => onChange(skill, { rating: choice.value })}
+          >
+            {choice.label}
+            <small>{choice.meta}</small>
+          </button>
+        ))}
+      </div>
+      <input
+        className="skill-item__evidence-input"
+        aria-label={`${skill.name} experience`}
+        value={rating.evidence}
+        onChange={(event) =>
+          onChange(skill, { evidence: event.target.value })
+        }
+        placeholder="Optional: an example from your experience"
+      />
+    </div>
+  );
+}
+
+/* ---------- Voice input ---------- */
+
 type DictationState = "idle" | "recording" | "transcribing" | "error";
 
 function useVoiceDictation(onTranscript: (text: string) => void) {
@@ -1332,6 +1878,8 @@ function VoiceInputButton({
     </span>
   );
 }
+
+/* ---------- Helpers ---------- */
 
 function appendValue(current: string, addition: string) {
   return current ? `${current} ${addition}`.trim() : addition;
@@ -1441,22 +1989,123 @@ function toNotice(error: unknown): Notice {
 }
 
 function stepLabel(step: StepKey) {
-  return steps.find((item) => item.key === step)?.label ?? "Workspace";
+  return STEPS.find((item) => item.key === step)?.label ?? "Workspace";
 }
 
 function screenTitle(step: StepKey) {
   switch (step) {
     case "background":
-      return "Find the IT role that fits your experience.";
+      return "Tell us what you've done.";
     case "profile":
-      return "Review your profile";
+      return "Review your profile.";
     case "assessment":
-      return "Four questions to refine your fit";
+      return "Four questions to refine your fit.";
     case "roles":
-      return "3 career paths for you";
+      return "Three paths worth exploring.";
     case "skills":
-      return "Your path, backed by market evidence";
+      return "Your path, backed by market evidence.";
     case "plan":
-      return "Your 30-day action plan";
+      return "Your 30-day action plan.";
   }
+}
+
+function screenLede(step: StepKey, profile: Profile) {
+  switch (step) {
+    case "background":
+      return "It doesn't need to sound like a CV — messy is fine. We'll extract the structure.";
+    case "profile":
+      return "AI drafted this from your background. Edit anything before continuing.";
+    case "assessment":
+      return "Short answers work. Each one sharpens your recommendations.";
+    case "roles":
+      return profile.name
+        ? `${profile.name}, three realistic directions grounded in real job requirements.`
+        : "Three realistic directions grounded in real job requirements.";
+    case "skills":
+      return "Each requirement below is repeated across the prepared job descriptions for this role.";
+    case "plan":
+      return "A focused roadmap from your gaps to portfolio evidence — one day at a time.";
+  }
+}
+
+function matchTier(score: number, index: number) {
+  if (score >= 78 || index === 0) {
+    return {
+      label: "Strong direction",
+      className: "role-card__label--strong",
+    };
+  }
+  if (score >= 60 || index === 1) {
+    return {
+      label: "Worth exploring",
+      className: "role-card__label--explore",
+    };
+  }
+  return {
+    label: "Stretch direction",
+    className: "role-card__label--stretch",
+  };
+}
+
+const CHIP_STOPWORDS = new Set([
+  "and",
+  "the",
+  "with",
+  "have",
+  "from",
+  "that",
+  "this",
+  "for",
+  "into",
+  "over",
+  "under",
+  "about",
+  "your",
+  "you",
+  "our",
+  "their",
+  "they",
+  "them",
+  "what",
+  "when",
+  "where",
+  "which",
+  "while",
+  "would",
+  "should",
+  "could",
+  "were",
+  "been",
+  "being",
+  "make",
+  "made",
+  "using",
+  "used",
+  "also",
+  "some",
+  "such",
+  "very",
+  "just",
+  "into",
+  "role",
+  "team",
+  "will",
+  "want",
+  "like",
+]);
+
+function extractChips(source: string) {
+  const seen = new Set<string>();
+  const chips: string[] = [];
+  const words = source.match(/[A-Za-zÄÖÜäöüß+#.]{4,}/g) ?? [];
+  for (const raw of words) {
+    const word = raw.trim();
+    const key = word.toLowerCase();
+    if (CHIP_STOPWORDS.has(key)) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    chips.push(word);
+    if (chips.length >= 12) break;
+  }
+  return chips;
 }
